@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Super Stick Hero</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #2c3e50;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: 'Press Start 2P', cursive; /* Retro font for game feel */
+            touch-action: none; /* Prevent default touch actions like zooming/scrolling */
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            height: 100%;
+            max-height: 800px;
+            background-color: #87CEEB; /* Sky blue */
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        /* Responsive height for better mobile fit */
+        @media (min-aspect-ratio: 1/1) {
+            #game-container {
+                height: 80vh;
+                border-radius: 20px;
+            }
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 10;
+            transition: opacity 0.3s;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .btn {
+            background-color: #e74c3c;
+            color: white;
+            border: 4px solid #c0392b;
+            padding: 15px 30px;
+            font-size: 16px;
+            font-family: inherit;
+            cursor: pointer;
+            margin: 10px;
+            text-transform: uppercase;
+            border-radius: 10px;
+            transition: transform 0.1s, background-color 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn:hover {
+            background-color: #c0392b;
+        }
+
+        #score-display {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            text-align: center;
+            font-size: 40px;
+            color: white;
+            z-index: 5;
+            text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000;
+        }
+
+        #high-score-display {
+            position: absolute;
+            top: 70px;
+            width: 100%;
+            text-align: center;
+            font-size: 14px;
+            color: #f1c40f;
+            z-index: 5;
+            text-shadow: 1px 1px 0 #000;
+        }
+
+        #pause-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 6;
+            text-shadow: 1px 1px 0 #000;
+        }
+
+        .title {
+            color: #f1c40f;
+            font-size: 32px;
+            margin-bottom: 40px;
+            text-align: center;
+            text-shadow: 3px 3px 0 #c0392b;
+            line-height: 1.5;
+        }
+
+        .instructions {
+            color: white;
+            font-size: 12px;
+            text-align: center;
+            margin-bottom: 30px;
+            line-height: 1.8;
+            padding: 0 20px;
+        }
+        
+        .loading {
+            color: white;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="score-display" class="hidden">0</div>
+        <div id="high-score-display" class="hidden">High Score: <span id="hs-val">...</span></div>
+        <button id="pause-btn" class="hidden">||</button>
+
+        <!-- Main Menu -->
+        <div id="main-menu" class="ui-layer">
+            <h1 class="title">SUPER<br>STICK HERO</h1>
+            <div class="instructions">
+                กดค้างที่หน้าจอเพื่อยืดไม้<br>
+                ปล่อยเพื่อให้ไม้พาดข้ามไป<br>
+                อย่าให้ไม้สั้นหรือยาวเกินไป!
+            </div>
+            <button id="start-btn" class="btn">เริ่มเกม</button>
+            <div id="loading-hs" class="loading">กำลังโหลดคะแนนสูงสุด...</div>
+        </div>
+
+        <!-- Pause Menu -->
+        <div id="pause-menu" class="ui-layer hidden">
+            <h2 class="title" style="font-size: 24px; color: white; text-shadow: none;">หยุดพัก</h2>
+            <button id="resume-btn" class="btn">เล่นต่อ</button>
+            <button id="restart-btn-pause" class="btn">เริ่มใหม่</button>
+            <button id="menu-btn-pause" class="btn">เมนูหลัก</button>
+        </div>
+
+        <!-- Game Over Menu -->
+        <div id="game-over-menu" class="ui-layer hidden">
+            <h2 class="title" style="color: #e74c3c; text-shadow: 2px 2px 0 #fff;">เกมโอเวอร์</h2>
+            <div style="color: white; font-size: 16px; margin-bottom: 20px;">คะแนน: <span id="final-score">0</span></div>
+            <button id="restart-btn" class="btn">เล่นอีกครั้ง</button>
+            <button id="menu-btn-over" class="btn">เมนูหลัก</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('game-container');
+
+        // UI Elements
+        const mainMenu = document.getElementById('main-menu');
+        const pauseMenu = document.getElementById('pause-menu');
+        const gameOverMenu = document.getElementById('game-over-menu');
+        const scoreDisplay = document.getElementById('score-display');
+        const highScoreDisplay = document.getElementById('high-score-display');
+        const hsVal = document.getElementById('hs-val');
+        const pauseBtn = document.getElementById('pause-btn');
+        const finalScore = document.getElementById('final-score');
+        const loadingHs = document.getElementById('loading-hs');
+
+        // Game Configuration
+        const API_URL = 'https://script.google.com/macros/s/AKfycbyEf3XcoYwNMG4RZeew_kCGUZRJOxY1fmmz6DRdOgvJ0p8_dTVapwb4Cew4Plx8xko2eQ/exec';
+        
+        let GAME_WIDTH, GAME_HEIGHT;
+        let scale = 1;
+
+        // Game States
+        const STATE = {
+            MENU: 0,
+            WAITING: 1,      // Waiting for input to grow stick
+            GROWING: 2,      // Stick is growing
+            FALLING: 3,      // Stick is falling down
+            WALKING: 4,      // Hero is walking on stick
+            TRANSITION: 5,   // Moving to next platform
+            GAMEOVER: 6,
+            PAUSED: 7
+        };
+        let currentState = STATE.MENU;
+
+        // Entities
+        let platforms = [];
+        let hero = { x: 0, y: 0, width: 20, height: 30, color: '#e74c3c' };
+        let stick = { length: 0, angle: 90, growingSpeed: 0, maxSpeed: 10 };
+        
+        let score = 0;
+        let globalHighScore = 0;
+        let cameraX = 0;
+        let lastTime = 0;
+        
+        // Colors
+        const COLOR_PLATFORM = '#000000';
+        const COLOR_STICK = '#333333';
+        const COLOR_PERFECT = '#e74c3c';
+
+        // Constants
+        const PLATFORM_MIN_WIDTH = 40;
+        const PLATFORM_MAX_WIDTH = 120;
+        const GAP_MIN = 30;
+        let GAP_MAX = 200;
+        const PERFECT_ZONE_WIDTH = 10;
+        const HERO_SPEED = 200; // pixels per second
+        
+        // Animation variables
+        let animationId;
+        let perfectHit = false;
+
+        function resize() {
+            GAME_WIDTH = container.clientWidth;
+            GAME_HEIGHT = container.clientHeight;
+            canvas.width = GAME_WIDTH;
+            canvas.height = GAME_HEIGHT;
+            
+            // Adjust max gap based on screen width
+            GAP_MAX = Math.min(250, GAME_WIDTH - PLATFORM_MAX_WIDTH - 20);
+            
+            if(currentState === STATE.MENU) {
+                drawBackground();
+            }
+        }
+        
+        window.addEventListener('resize', resize);
+        resize();
+
+        async function fetchHighScore() {
+            loadingHs.textContent = "กำลังโหลดคะแนนสูงสุด...";
+            try {
+                const response = await fetch(API_URL);
+                
+                if (!response.ok) {
+                     console.warn(`HTTP error! status: ${response.status}`);
+                     throw new Error("HTTP_ERROR");
+                }
+
+                // พยายามอ่านเป็น JSON ก่อน
+                const text = await response.text();
+                let newHighScore = null;
+
+                try {
+                    const data = JSON.parse(text);
+                    // รองรับหลายรูปแบบ JSON
+                    if (data && data.highScore !== undefined) {
+                        newHighScore = parseInt(data.highScore);
+                    } else if (data && data.score !== undefined) {
+                        newHighScore = parseInt(data.score);
+                    }
+                } catch (jsonError) {
+                    // ถ้าไม่ใช่ JSON ลองอ่านเป็นตัวเลขตรงๆ
+                    const parsedInt = parseInt(text);
+                    if (!isNaN(parsedInt)) {
+                         newHighScore = parsedInt;
+                    }
+                }
+
+                if (newHighScore !== null && !isNaN(newHighScore)) {
+                    globalHighScore = newHighScore;
+                    loadingHs.textContent = `คะแนนสูงสุดทั่วโลก: ${globalHighScore}`;
+                } else {
+                     // ถ้าข้อมูลไม่ตรงรูปแบบ จะไม่ Throw Error แล้ว แต่จะแจ้งเตือนแทน
+                     console.warn("API response format not recognized. Falling back to local score.");
+                     loadingHs.textContent = "ใช้คะแนนสูงสุดจากในเครื่อง";
+                }
+
+            } catch (error) {
+                // เปลี่ยนจาก console.error เป็น console.warn เพื่อไม่ให้ขึ้นสีแดงน่ากลัวใน Console
+                console.warn("Network or API issue. Playing offline.");
+                loadingHs.textContent = "เล่นแบบออฟไลน์ (คะแนนในเครื่อง)";
+            } finally {
+                // อัปเดต UI ด้วยค่าที่มี (อาจจะเป็นค่าจาก LocalStorage หรือ 0)
+                let localScore = parseInt(localStorage.getItem('stickHeroHighScore')) || 0;
+                // ถ้า API ล้มเหลว หรือได้ค่าน้อยกว่า Local ให้ใช้ค่า Local
+                if (localScore > globalHighScore) {
+                    globalHighScore = localScore;
+                }
+                hsVal.textContent = globalHighScore;
+            }
+        }
+
+        // เราจะส่งคะแนนไปเก็บไว้ (ถ้า API รองรับ) หรือเก็บใน LocalStorage
+        function submitScore(newScore) {
+            if (newScore > globalHighScore) {
+                globalHighScore = newScore;
+                localStorage.setItem('stickHeroHighScore', globalHighScore);
+                hsVal.textContent = globalHighScore;
+                
+                // พยายามส่งไปอัปเดต ถ้า API เป็น GET (ตามสคริปต์ตัวอย่าง)
+                try {
+                     fetch(`${API_URL}?score=${newScore}`).catch(e => console.log("Score update failed:", e));
+                } catch(e) {
+                     console.log("Could not trigger score update");
+                }
+            }
+        }
+
+        function generatePlatform(x) {
+            const width = Math.random() * (PLATFORM_MAX_WIDTH - PLATFORM_MIN_WIDTH) + PLATFORM_MIN_WIDTH;
+            return {
+                x: x,
+                y: GAME_HEIGHT * 0.7, // 70% down the screen
+                width: width,
+                height: GAME_HEIGHT * 0.3
+            };
+        }
+
+        function initGame() {
+            score = 0;
+            cameraX = 0;
+            scoreDisplay.textContent = score;
+            perfectHit = false;
+            
+            platforms = [];
+            // First platform
+            platforms.push(generatePlatform(0));
+            platforms[0].width = 100; // Fixed start width
+            platforms[0].x = 50;      // Start a bit from the left
+            
+            // Second platform
+            const gap = Math.random() * (GAP_MAX - GAP_MIN) + GAP_MIN;
+            platforms.push(generatePlatform(platforms[0].x + platforms[0].width + gap));
+
+            // Setup Hero
+            hero.x = platforms[0].x + platforms[0].width - hero.width - 5;
+            hero.y = platforms[0].y - hero.height;
+
+            resetStick();
+            
+            currentState = STATE.WAITING;
+            lastTime = performance.now();
+            
+            // Update UI
+            mainMenu.classList.add('hidden');
+            gameOverMenu.classList.add('hidden');
+            pauseMenu.classList.add('hidden');
+            scoreDisplay.classList.remove('hidden');
+            highScoreDisplay.classList.remove('hidden');
+            pauseBtn.classList.remove('hidden');
+            
+            if(animationId) cancelAnimationFrame(animationId);
+            gameLoop(lastTime);
+        }
+
+        function resetStick() {
+            stick.length = 0;
+            stick.angle = 90; // Pointing straight up
+            stick.growingSpeed = 300; // pixels per second
+            stick.x = hero.x + hero.width; // กำหนดให้เสาต้นใหม่สร้างจากด้านหน้าของตัวละครเสมอ
+        }
+
+        function addNextPlatform() {
+            const lastPlatform = platforms[platforms.length - 1];
+            const gap = Math.random() * (GAP_MAX - GAP_MIN) + GAP_MIN;
+            platforms.push(generatePlatform(lastPlatform.x + lastPlatform.width + gap));
+            
+            // Keep array small
+            if(platforms.length > 3) {
+                platforms.shift();
+            }
+        }
+
+        function handlePointerDown(e) {
+            if (e.target === pauseBtn || pauseBtn.contains(e.target)) return;
+            if (currentState === STATE.WAITING) {
+                currentState = STATE.GROWING;
+            }
+        }
+
+        function handlePointerUp(e) {
+            if (currentState === STATE.GROWING) {
+                currentState = STATE.FALLING;
+            }
+        }
+
+        // Mouse Events
+        container.addEventListener('mousedown', handlePointerDown);
+        window.addEventListener('mouseup', handlePointerUp); // Window catches release outside
+
+        // Touch Events
+        container.addEventListener('touchstart', (e) => {
+            // Prevent default to stop scrolling, but don't prevent if hitting UI
+            if(!e.target.classList.contains('btn') && e.target.id !== 'pause-btn') {
+                e.preventDefault(); 
+            }
+            handlePointerDown(e);
+        }, { passive: false });
+        
+        window.addEventListener('touchend', handlePointerUp);
+
+        // UI Button Listeners
+        document.getElementById('start-btn').addEventListener('click', () => initGame());
+        
+        document.getElementById('restart-btn').addEventListener('click', () => initGame());
+        
+        document.getElementById('restart-btn-pause').addEventListener('click', () => initGame());
+        
+        pauseBtn.addEventListener('click', () => {
+            if (currentState !== STATE.GAMEOVER && currentState !== STATE.MENU) {
+                currentState = STATE.PAUSED;
+                pauseMenu.classList.remove('hidden');
+                pauseBtn.classList.add('hidden');
+            }
+        });
+        
+        document.getElementById('resume-btn').addEventListener('click', () => {
+            currentState = STATE.WAITING; // Or previous state, but waiting is safest
+            lastTime = performance.now();
+            pauseMenu.classList.add('hidden');
+            pauseBtn.classList.remove('hidden');
+            gameLoop(lastTime);
+        });
+
+        const toMenu = () => {
+            currentState = STATE.MENU;
+            gameOverMenu.classList.add('hidden');
+            pauseMenu.classList.add('hidden');
+            scoreDisplay.classList.add('hidden');
+            highScoreDisplay.classList.add('hidden');
+            pauseBtn.classList.add('hidden');
+            mainMenu.classList.remove('hidden');
+            drawBackground();
+        };
+
+        document.getElementById('menu-btn-over').addEventListener('click', toMenu);
+        document.getElementById('menu-btn-pause').addEventListener('click', toMenu);
+
+
+        function update(dt) {
+            if (currentState === STATE.GROWING) {
+                stick.length += stick.growingSpeed * dt;
+            } 
+            else if (currentState === STATE.FALLING) {
+                stick.angle -= 300 * dt; // Fall speed
+                if (stick.angle <= 0) {
+                    stick.angle = 0;
+                    currentState = STATE.WALKING;
+                }
+            }
+            else if (currentState === STATE.WALKING) {
+                hero.x += HERO_SPEED * dt;
+                
+                const p2 = platforms[1];
+                const stickStartX = stick.x; // จุดเริ่มเสาคือจุดที่ตัวละครยืนอยู่
+                const stickEndX = stickStartX + stick.length;
+                
+                const successMin = p2.x;
+                const successMax = p2.x + p2.width;
+                let willSucceed = (stickEndX >= successMin && stickEndX <= successMax);
+                
+                // เป้าหมายการเดินคือ "ปลายไม้" (ให้ด้านหน้าของตัวละครพอดีกับปลายไม้)
+                let walkTargetX = stickEndX - hero.width;
+                
+                // ตรวจสอบว่าฮีโร่เดินถึงปลายไม้หรือยัง
+                if (hero.x >= walkTargetX) {
+                    hero.x = walkTargetX; // ล็อกตำแหน่งให้ยืนเหยียบบนปลายไม้พอดี
+                    
+                    if (willSucceed) {
+                        // เช็ค Perfect (จุดแดงตรงกลาง)
+                        const perfectCenter = p2.x + p2.width / 2;
+                        if(Math.abs(stickEndX - perfectCenter) <= PERFECT_ZONE_WIDTH/2) {
+                            score += 2;
+                            perfectHit = true;
+                        } else {
+                            score += 1;
+                            perfectHit = false;
+                        }
+                        
+                        scoreDisplay.textContent = score;
+                        currentState = STATE.TRANSITION; // ไปสู่ช่วงเลื่อนกล้อง
+                    } else {
+                        // เดินตกไม้ (สั้นไป หรือ ยาวเกินแท่นไป)
+                        currentState = STATE.GAMEOVER;
+                        gameOver();
+                    }
+                }
+            }
+            else if (currentState === STATE.TRANSITION) {
+                // เลื่อนกล้องไปข้างหน้าอย่างเดียว โดยให้ตัวละครอยู่ตำแหน่งเดิมบนจอ (เช่น x = 50)
+                // ไม่ต้องบังคับตัวละครวิ่งไปสุดขอบแท่นแล้ว
+                const targetCameraX = hero.x - 50;
+                
+                const moveDist = HERO_SPEED * dt * 1.5;
+                
+                if (cameraX < targetCameraX) {
+                    cameraX += moveDist;
+                    if (cameraX > targetCameraX) cameraX = targetCameraX;
+                } else {
+                    cameraX = targetCameraX;
+                    platforms.shift(); // เอาแท่นเก่าออก
+                    addNextPlatform(); // สุ่มแท่นใหม่
+                    
+                    resetStick(); // รีเซ็ตเสาใหม่ (เสาจะถูกสร้างที่หน้าตัวละครพอดี)
+                    currentState = STATE.WAITING; 
+                    perfectHit = false;
+                }
+            }
+        }
+
+        function gameOver() {
+            submitScore(score);
+            finalScore.textContent = score;
+            
+            // Hero falls animation logic could go here, for simplicity we just show menu
+            setTimeout(() => {
+                gameOverMenu.classList.remove('hidden');
+                pauseBtn.classList.add('hidden');
+            }, 500);
+        }
+
+        function drawBackground() {
+            // Sky
+            ctx.fillStyle = '#87CEEB';
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+            
+            // Background hills/clouds could go here
+            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.beginPath();
+            ctx.arc(GAME_WIDTH*0.2, GAME_HEIGHT*0.3, 40, 0, Math.PI*2);
+            ctx.arc(GAME_WIDTH*0.3, GAME_HEIGHT*0.35, 50, 0, Math.PI*2);
+            ctx.fill();
+        }
+
+        function draw() {
+            drawBackground();
+
+            ctx.save();
+            ctx.translate(-cameraX, 0);
+
+            // Draw Platforms
+            platforms.forEach((p, index) => {
+                ctx.fillStyle = COLOR_PLATFORM;
+                ctx.fillRect(p.x, p.y, p.width, p.height);
+                
+                // Draw Perfect Zone on target platform
+                if(index === 1) {
+                    ctx.fillStyle = COLOR_PERFECT;
+                    const pCenter = p.x + p.width/2;
+                    ctx.fillRect(pCenter - PERFECT_ZONE_WIDTH/2, p.y, PERFECT_ZONE_WIDTH, 5);
+                }
+            });
+
+            // Draw Stick
+            if (currentState !== STATE.MENU) {
+                const p1 = platforms[0];
+                const stickStartX = stick.x || (p1.x + p1.width); // ดึงค่าพิกัดการสร้างเสา
+                const stickStartY = p1.y;
+
+                ctx.save();
+                ctx.translate(stickStartX, stickStartY);
+                
+                // แก้ไขการหมุนให้เสาล้มไปทางขวา (องศาเพิ่มขึ้น = หมุนตามเข็มนาฬิกา)
+                const rotRad = (90 - stick.angle) * Math.PI / 180;
+                ctx.rotate(rotRad);
+
+                ctx.fillStyle = COLOR_STICK;
+                // Draw stick going "up" which is negative Y before rotation
+                ctx.fillRect(0, 0, 4, -stick.length); 
+                ctx.restore();
+            }
+
+            // Draw Hero
+            if (currentState !== STATE.MENU) {
+                // If game over, animate hero falling
+                let currentHeroY = hero.y;
+                if(currentState === STATE.GAMEOVER) {
+                    currentHeroY += 5; // Simple fall visual
+                    hero.y = currentHeroY;
+                }
+
+                ctx.fillStyle = hero.color;
+                // Simple character (a square/rectangle)
+                ctx.fillRect(hero.x, currentHeroY, hero.width, hero.height);
+                
+                // Eye
+                ctx.fillStyle = 'white';
+                ctx.fillRect(hero.x + hero.width - 8, currentHeroY + 5, 5, 5);
+                ctx.fillStyle = 'black';
+                ctx.fillRect(hero.x + hero.width - 6, currentHeroY + 6, 2, 2);
+                
+                // Bandana
+                ctx.fillStyle = 'red';
+                ctx.fillRect(hero.x, currentHeroY + 12, hero.width, 4);
+            }
+            
+            // Draw Perfect Hit text
+            if(perfectHit && currentState === STATE.TRANSITION) {
+                ctx.fillStyle = '#f1c40f';
+                ctx.font = '16px "Press Start 2P"';
+                ctx.textAlign = 'center';
+                ctx.fillText("PERFECT!", hero.x + hero.width/2, hero.y - 20);
+            }
+
+            ctx.restore();
+        }
+
+        function gameLoop(time) {
+            if (currentState === STATE.PAUSED || currentState === STATE.MENU) return;
+            
+            const dt = (time - lastTime) / 1000;
+            lastTime = time;
+
+            // Cap dt to prevent huge jumps if tab is inactive
+            if(dt < 0.1) {
+                update(dt);
+            }
+            
+            draw();
+
+            if (currentState !== STATE.PAUSED && currentState !== STATE.MENU) {
+                animationId = requestAnimationFrame(gameLoop);
+            }
+        }
+
+        // Initialize App
+        fetchHighScore();
+        drawBackground(); // Draw initial bg for menu
+
+    </script>
+</body>
+</html>
