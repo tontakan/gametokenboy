@@ -1,0 +1,1804 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Claw Machine Game</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --cabinet-outer: #4fd1c5;
+      --cabinet-dark: #234e52;
+      --cabinet-wood: #7b341e;
+      --glass-blue: #9decf9;
+      --glass-light: #e6fffa;
+      --chute-color: #2b6cb0;
+      --pixel-font: 'Press Start 2P', monospace;
+      --thai-font: 'Prompt', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      touch-action: manipulation;
+    }
+
+    body {
+      background: radial-gradient(circle at center, #7ee8fa 0%, #80ffdb 50%, #64dfdf 100%);
+      font-family: var(--thai-font);
+      overflow: hidden;
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      height: 100dvh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .pixel-text {
+      font-family: var(--pixel-font);
+      letter-spacing: 1px;
+    }
+
+    .machine-container {
+      width: 100%;
+      max-width: 440px;
+      height: 100vh;
+      height: 100dvh;
+      max-height: 840px;
+      display: flex;
+      flex-direction: column;
+      background: #319795;
+      border: 8px solid #234e52;
+      border-radius: 24px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), inset 0 4px 8px rgba(255, 255, 255, 0.4);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .machine-header {
+      background: #285e61;
+      border-bottom: 5px solid #1d4044;
+      padding: 8px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+    }
+
+    .level-badge {
+      background: linear-gradient(135deg, #f6e05e 0%, #d69e2e 100%);
+      color: #1a202c;
+      font-weight: 900;
+      padding: 2px 8px;
+      border-radius: 6px;
+      border: 2px solid #744210;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .glass-chamber {
+      position: relative;
+      flex: 1;
+      background: linear-gradient(180deg, #b2f5ea 0%, #81e6d9 60%, #4fd1c5 100%);
+      border: 6px solid #1a365d;
+      margin: 6px 10px;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: inset 0 0 25px rgba(0,0,0,0.15);
+    }
+
+    .glass-glare {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.1) 35%, transparent 35.5%);
+      pointer-events: none;
+      z-index: 25;
+    }
+
+    .rail-bar-top {
+      position: absolute;
+      top: 18px;
+      left: 0;
+      width: 100%;
+      height: 10px;
+      background: #e2e8f0;
+      border-top: 2px solid #fff;
+      border-bottom: 2px solid #718096;
+      z-index: 10;
+    }
+
+    .rail-bar-vertical {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background: rgba(255,255,255,0.4);
+      left: 28%;
+      pointer-events: none;
+    }
+
+    #crane-assembly {
+      position: absolute;
+      top: 14px;
+      left: 20px;
+      width: 54px;
+      transform: translateX(0px);
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transition: none;
+    }
+
+    .crane-carriage {
+      width: 38px;
+      height: 18px;
+      background: #e2e8f0;
+      border: 3px solid #4a5568;
+      border-radius: 4px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .crane-cable {
+      width: 4px;
+      height: 35px;
+      background: #718096;
+      background-image: repeating-linear-gradient(0deg, #4a5568, #4a5568 3px, #cbd5e0 3px, #cbd5e0 6px);
+      transition: height 0.05s linear;
+    }
+
+    .claw-head {
+      width: 44px;
+      height: 38px;
+      position: relative;
+    }
+
+    .claw-hub {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 22px;
+      height: 14px;
+      background: #e2e8f0;
+      border: 2px solid #2d3748;
+      border-radius: 5px;
+    }
+
+    .claw-arm {
+      position: absolute;
+      top: 10px;
+      width: 14px;
+      height: 28px;
+      border: 3px solid #4a5568;
+      background: #edf2f7;
+      transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .claw-arm.left {
+      left: 6px;
+      border-radius: 0 0 0 10px;
+      border-right: none;
+      transform-origin: top right;
+      transform: rotate(-15deg);
+    }
+
+    .claw-arm.right {
+      right: 6px;
+      border-radius: 0 0 10px 0;
+      border-left: none;
+      transform-origin: top left;
+      transform: rotate(15deg);
+    }
+
+    .claw-grab .claw-arm.left {
+      transform: rotate(20deg);
+    }
+
+    .claw-grab .claw-arm.right {
+      transform: rotate(-20deg);
+    }
+
+    .prize-chute-box {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 90px;
+      height: 110px;
+      background: #2b6cb0;
+      border-top: 5px solid #1a365d;
+      border-right: 5px solid #1a365d;
+      z-index: 12;
+      overflow: hidden;
+      border-top-right-radius: 8px;
+      box-shadow: inset -4px 4px 10px rgba(0,0,0,0.3);
+    }
+
+    .chute-hole {
+      position: absolute;
+      bottom: 0;
+      left: 6px;
+      right: 6px;
+      height: 70px;
+      background: #1a202c;
+      border: 3px solid #2d3748;
+      border-radius: 6px 6px 0 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .chute-arrow {
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 16px;
+      color: #90cdf4;
+      animation: bounceArrow 1s infinite alternate;
+    }
+
+    @keyframes bounceArrow {
+      from { transform: translate(-50%, 0); }
+      to { transform: translate(-50%, 6px); }
+    }
+
+    .doll {
+      position: absolute;
+      width: 48px;
+      height: 48px;
+      cursor: pointer;
+      filter: drop-shadow(0 4px 5px rgba(0,0,0,0.25));
+      transition: transform 0.2s ease;
+      z-index: 15;
+    }
+
+    .doll.grabbed {
+      transition: none;
+      z-index: 22;
+    }
+
+    .doll.falling {
+      transition: top 0.4s cubic-bezier(0.55, 0.055, 0.675, 0.19);
+    }
+
+    .control-panel {
+      background: #2d3748;
+      border-top: 5px solid #1a202c;
+      padding: 10px 14px 14px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 30;
+    }
+
+    .arcade-btn {
+      position: relative;
+      touch-action: none;
+      border-radius: 12px;
+      border: none;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 0 rgba(0,0,0,0.4), inset 0 2px 4px rgba(255,255,255,0.4);
+      transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.1s;
+    }
+
+    .arcade-btn:active, .arcade-btn.pressed {
+      transform: translateY(4px);
+      box-shadow: 0 2px 0 rgba(0,0,0,0.5), inset 0 1px 2px rgba(0,0,0,0.3);
+    }
+
+    .arcade-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: 0 4px 0 rgba(0,0,0,0.3);
+    }
+
+    .btn-move {
+      background: #3182ce;
+      color: white;
+      min-width: 68px;
+      height: 60px;
+    }
+
+    .btn-drop {
+      background: linear-gradient(180deg, #ed8936 0%, #dd6b20 100%);
+      color: white;
+      height: 60px;
+      flex: 1;
+    }
+
+    .modal-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+      padding: 16px;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    @keyframes popIn {
+      0% { transform: scale(0.6); opacity: 0; }
+      80% { transform: scale(1.08); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-box {
+      animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    /* Explosion & Screen Shake Effects */
+    @keyframes screenShake {
+      0%, 100% { transform: translate(0, 0) rotate(0deg); }
+      15% { transform: translate(-6px, 5px) rotate(-1.5deg); }
+      30% { transform: translate(6px, -4px) rotate(1.5deg); }
+      45% { transform: translate(-5px, -3px) rotate(-1deg); }
+      60% { transform: translate(5px, 3px) rotate(1deg); }
+      75% { transform: translate(-3px, 1px) rotate(-0.5deg); }
+      90% { transform: translate(2px, -1px) rotate(0.5deg); }
+    }
+
+    .shake-screen {
+      animation: screenShake 0.6s ease-in-out;
+    }
+
+    .bomb-pulse {
+      animation: bombPulse 1.2s infinite ease-in-out;
+    }
+
+    @keyframes bombPulse {
+      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px rgba(239, 68, 68, 0.4)); }
+      50% { transform: scale(1.08); filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.9)); }
+    }
+
+    .explosion-overlay {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle, rgba(255,100,50,0.9) 0%, rgba(220,38,38,0.7) 40%, rgba(0,0,0,0.85) 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 60;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
+    }
+
+    .explosion-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="machine-container">
+    
+    <!-- Top Header / Score Display -->
+    <header class="machine-header">
+      <div class="flex items-center gap-2">
+        <div class="w-3 h-3 rounded-full bg-red-400 animate-ping"></div>
+        <h1 class="pixel-text text-xs sm:text-sm text-cyan-200 tracking-wider">CLAW GAME</h1>
+        <div class="level-badge pixel-text text-[10px] ml-1" id="stage-badge">LV.1/10</div>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <!-- Hearts / Lives Display -->
+        <div id="hearts-display" class="flex items-center bg-black/40 px-2 py-1 rounded-md border border-red-500/50 text-xs">
+          <!-- Rendered dynamically -->
+        </div>
+
+        <!-- Coin Counter -->
+        <div class="flex items-center gap-1 bg-black/40 px-2 py-1 rounded-md border border-yellow-500/50">
+          <span class="text-xs text-yellow-400">🪙</span>
+          <span id="coin-count" class="pixel-text text-xs text-yellow-300">10</span>
+        </div>
+
+        <!-- Collection Button -->
+        <button id="btn-inventory" class="text-xs bg-teal-800 hover:bg-teal-700 text-teal-100 px-2 py-1 rounded border border-teal-500 flex items-center gap-1">
+          <span>🎒</span> <b id="prize-won-count">0</b>
+        </button>
+
+        <!-- Gear / Settings Menu Button -->
+        <button id="btn-settings-gear" class="text-xs bg-teal-900 hover:bg-teal-800 text-cyan-200 p-1.5 rounded-lg border border-teal-500/70 active:scale-95 transition-transform" title="เมนู">
+          ⚙️
+        </button>
+      </div>
+    </header>
+
+    <!-- Sub-bar for Stage & Progress info -->
+    <div class="bg-teal-900/90 px-3 py-1.5 border-b-2 border-teal-950 flex justify-between items-center text-xs text-teal-100">
+      <div class="flex items-center gap-1.5">
+        <span class="text-teal-300 text-[11px]">เหลือตุ๊กตา:</span>
+        <span id="remaining-dolls-text" class="text-yellow-300 font-bold pixel-text text-xs">3</span>
+        <span class="text-gray-400 text-[10px]">ตัว</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span id="bomb-count-badge" class="text-[10px] bg-red-950/80 text-red-300 px-2 py-0.5 rounded border border-red-700/60 pixel-text">
+          💣 1 ลูก
+        </span>
+      </div>
+    </div>
+
+    <div class="glass-chamber" id="glass-chamber">
+      <div class="glass-glare"></div>
+      <!-- Explosion Blast VFX Layer -->
+      <div id="explosion-effect" class="explosion-overlay">
+        <div class="text-6xl animate-ping mb-2">💥</div>
+        <div class="pixel-text text-xl sm:text-2xl text-yellow-300 font-bold tracking-widest drop-shadow-[0_4px_8px_rgba(0,0,0,0.9)]">BOOOM!</div>
+      </div>
+      
+      <!-- Top Rail Bar -->
+      <div class="rail-bar-top"></div>
+      <div class="rail-bar-vertical"></div>
+
+      <!-- Moving Claw Crane Assembly -->
+      <div id="crane-assembly">
+        <div class="crane-carriage"></div>
+        <div class="crane-cable" id="crane-cable"></div>
+        <div class="claw-head" id="claw-head">
+          <div class="claw-hub"></div>
+          <div class="claw-arm left"></div>
+          <div class="claw-arm right"></div>
+        </div>
+      </div>
+
+      <!-- Prize Chute (Bottom Left Corner) -->
+      <div class="prize-chute-box">
+        <div class="chute-arrow">▼</div>
+        <div class="chute-hole">
+          <span class="pixel-text text-[9px] text-cyan-300/80 text-center leading-tight">PRIZE<br>CHUTE</span>
+        </div>
+      </div>
+
+      <!-- Prizes Container (Dolls spawned dynamically) -->
+      <div id="prizes-container" class="absolute inset-0 pointer-events-none"></div>
+
+      <!-- Floating notification message -->
+      <div id="status-toast" class="absolute top-12 left-1/2 -translate-x-1/2 bg-black/80 border border-teal-300 text-teal-200 pixel-text text-[10px] px-3 py-1.5 rounded-full shadow-lg opacity-0 transition-opacity duration-300 pointer-events-none z-30">
+        READY!
+      </div>
+    </div>
+
+    <div class="flex items-center justify-between px-3 py-1 bg-teal-950 text-teal-200 border-t-2 border-teal-800 text-xs">
+      <div class="flex items-center gap-2">
+        <span class="text-gray-400 text-[11px]">สถานะ:</span>
+        <span id="machine-state-text" class="text-green-400 font-bold text-[11px]">พร้อมเล่น</span>
+      </div>
+      <button id="btn-sound-toggle" class="text-sm bg-teal-900 px-2 py-0.5 rounded border border-teal-700">
+        🔊 เปิดเสียง
+      </button>
+    </div>
+
+    <div class="control-panel">
+      <!-- Instruction Banner -->
+      <div class="text-center">
+        <span class="pixel-text text-[9px] sm:text-[10px] text-red-300 tracking-wide uppercase">
+          ⚠️ ห้ามคีบลูกระเบิดเด็ดขาด! คีบตุ๊กตาให้ครบเพื่อผ่านด่าน 💣
+        </span>
+      </div>
+
+      <!-- Buttons Row (Designed for comfortable one/two hand mobile play) -->
+      <div class="flex items-center gap-2 w-full">
+        <!-- Move Left -->
+        <button id="btn-left" class="arcade-btn btn-move">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 19l-7-7 7-7"/>
+          </svg>
+          <span class="text-[10px] font-bold mt-0.5">ซ้าย</span>
+        </button>
+
+        <!-- Move Right -->
+        <button id="btn-right" class="arcade-btn btn-move">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7"/>
+          </svg>
+          <span class="text-[10px] font-bold mt-0.5">ขวา</span>
+        </button>
+
+        <!-- Grab Button -->
+        <button id="btn-grab" class="arcade-btn btn-drop">
+          <div class="flex items-center gap-1.5">
+            <span class="text-xl">🕹️</span>
+            <span class="pixel-text text-xs sm:text-sm font-bold tracking-wider">DROP!</span>
+          </div>
+          <span class="text-[11px] opacity-90">คีบตุ๊กตา</span>
+        </button>
+      </div>
+
+      <!-- Bottom Quick Actions -->
+      <div class="flex justify-between items-center text-xs text-gray-400 pt-1">
+        <button id="btn-insert-coin" class="text-yellow-400 hover:text-yellow-300 flex items-center gap-1">
+          <span>➕ หยอดเหรียญ (+5)</span>
+        </button>
+        <div class="text-teal-400 text-[10px] flex items-center gap-1">
+          <span id="save-status-text">💾 บันทึกอัตโนมัติ</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Start / Title Screen Overlay (Shown before entering game) -->
+    <div id="start-menu-modal" class="modal-overlay active">
+      <div class="modal-box bg-slate-900/95 border-4 border-cyan-400 p-6 rounded-3xl max-w-[340px] w-full text-center text-white shadow-2xl relative">
+        <div class="text-5xl mb-2 animate-bounce">🕹️ ✨</div>
+        <h1 class="pixel-text text-lg sm:text-xl text-cyan-300 mb-1 tracking-wider drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">CLAW MACHINE</h1>
+        <p class="text-xs text-teal-200 mb-5">เกมตู้คีบตุ๊กตาสุดมันส์ 10 ด่าน</p>
+
+        <div class="bg-black/50 p-3 rounded-xl border border-teal-500/40 mb-5 text-left text-xs space-y-1.5 text-gray-300">
+          <div class="flex items-center gap-2 text-yellow-300">
+            <span>❤️</span> <span>มีหัวใจพลาดได้ 3 ดวง (+1 ทุกครั้งที่ผ่านด่าน)</span>
+          </div>
+          <div class="flex items-center gap-2 text-red-300">
+            <span>💣</span> <span>ระวังระเบิดเพิ่มขึ้นเรื่อยๆ ทีละลูก!</span>
+          </div>
+          <div class="flex items-center gap-2 text-cyan-300">
+            <span>🧸</span> <span>ด่าน 1-5 ตุ๊กตาค่อยๆ เพิ่ม, ด่าน 6 ขึ้นไป +3 ตัว</span>
+          </div>
+        </div>
+
+        <div class="space-y-3">
+          <button id="btn-start-new" class="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold rounded-xl pixel-text text-xs shadow-lg active:scale-95 transition-transform cursor-pointer flex items-center justify-center gap-2">
+            <span>🎮</span> <span>NEW GAME</span>
+          </button>
+          <button id="btn-start-continue" class="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl pixel-text text-xs shadow-lg active:scale-95 transition-transform cursor-pointer flex items-center justify-center gap-2">
+            <span>⏩</span> <span>เล่นต่อ (CONTINUE)</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pause / Settings Menu Modal (Opened by Gear Icon) -->
+    <div id="settings-modal" class="modal-overlay">
+      <div class="modal-box bg-slate-900 border-4 border-teal-400 p-5 rounded-2xl max-w-[320px] w-full text-white shadow-2xl relative text-center">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="pixel-text text-xs text-yellow-300">⚙️ GAME MENU</h2>
+          <button id="btn-close-settings" class="text-gray-400 hover:text-white text-lg font-bold">✕</button>
+        </div>
+
+        <div class="space-y-2.5 my-4">
+          <button id="btn-menu-resume" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold pixel-text text-[11px] shadow active:scale-95">
+            ▶ เล่นต่อ (RESUME)
+          </button>
+          <button id="btn-menu-new-game" class="w-full py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold pixel-text text-[11px] shadow active:scale-95">
+            🔄 เริ่มเกมใหม่ (NEW GAME)
+          </button>
+          <button id="btn-menu-save" class="w-full py-2.5 bg-teal-700 hover:bg-teal-600 text-white rounded-xl font-bold pixel-text text-[11px] shadow active:scale-95">
+            💾 บันทึกความคืบหน้า
+          </button>
+          <button id="btn-menu-title" class="w-full py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-bold pixel-text text-[11px] shadow active:scale-95">
+            🏠 กลับหน้าหลัก
+          </button>
+        </div>
+
+        <div class="pt-2 border-t border-slate-700 flex justify-between items-center text-xs text-gray-300">
+          <span>เสียงเอฟเฟกต์:</span>
+          <button id="btn-settings-sound-toggle" class="bg-teal-800 px-2.5 py-1 rounded border border-teal-600 text-[11px]">
+            🔊 เปิดเสียง
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stage Clear Modal -->
+    <div id="stage-clear-modal" class="modal-overlay">
+      <div class="modal-box bg-slate-900 border-4 border-emerald-400 p-6 rounded-2xl max-w-[320px] w-full text-center text-white shadow-2xl relative">
+        <div class="text-5xl mb-2 animate-bounce">🏆 ✨</div>
+        <h2 class="pixel-text text-base text-yellow-300 mb-1" id="stage-clear-title">STAGE 1 CLEARED!</h2>
+        <p class="text-xs text-emerald-200 mb-4">คุณเก็บตุ๊กตาในด่านนี้ได้หมดเกลี้ยงแล้ว!</p>
+
+        <div class="bg-black/50 p-3 rounded-xl border border-emerald-500/40 mb-4 text-left text-xs space-y-2">
+          <div class="flex justify-between text-gray-300">
+            <span>โบนัสเหรียญผ่านด่าน:</span>
+            <span class="text-yellow-400 font-bold">+5 เหรียญ 🪙</span>
+          </div>
+          <div class="flex justify-between text-gray-300">
+            <span>โบนัสหัวใจเพิ่ม:</span>
+            <span class="text-rose-400 font-bold">+1 ดวง ❤️</span>
+          </div>
+          <div class="flex justify-between text-gray-300">
+            <span>ด่านถัดไป:</span>
+            <span class="text-cyan-300 font-bold" id="next-stage-preview">ด่าน 2</span>
+          </div>
+        </div>
+
+        <button id="btn-next-stage" class="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-900 font-bold rounded-xl pixel-text text-xs shadow-lg active:scale-95 transition-transform cursor-pointer">
+          ลุยด่านต่อไป ▶
+        </button>
+      </div>
+    </div>
+
+    <!-- Final Game Victory Modal (Cleared all 10 stages) -->
+    <div id="game-won-modal" class="modal-overlay">
+      <div class="modal-box bg-slate-900 border-4 border-yellow-400 p-6 rounded-2xl max-w-[340px] w-full text-center text-white shadow-2xl relative">
+        <div class="text-5xl mb-2 animate-bounce">👑 🎊 🏆</div>
+        <h2 class="pixel-text text-lg text-yellow-300 mb-1">ALL CLEARED!</h2>
+        <p class="text-xs text-amber-200 font-semibold mb-4 leading-relaxed">
+          สุดยอดมาก! คุณเคลียร์ตู้คีบครบทั้ง 10 ด่านแล้ว!<br>เป็นเซียนตู้คีบระดับตำนาน
+        </p>
+
+        <div class="bg-black/50 p-3 rounded-xl border border-yellow-500/40 mb-5 text-left text-xs space-y-1.5">
+          <div class="flex justify-between text-gray-300">
+            <span>ตุ๊กตาทั้งหมดที่คีบได้:</span>
+            <b id="final-won-count" class="text-yellow-400 font-bold">0 ตัว</b>
+          </div>
+          <div class="flex justify-between text-gray-300">
+            <span>สถานะ:</span>
+            <span class="text-emerald-400 font-bold">ชนะสมบูรณ์แบบ 10/10</span>
+          </div>
+        </div>
+
+        <button id="btn-restart-victory" class="w-full py-3.5 bg-gradient-to-r from-yellow-400 via-amber-500 to-orange-500 text-slate-900 font-bold rounded-xl pixel-text text-xs shadow-xl active:scale-95 transition-transform flex items-center justify-center gap-2 cursor-pointer">
+          <span>🔄</span> <span>เล่นใหม่อีกครั้ง</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div id="game-over-modal" class="modal-overlay">
+      <div class="modal-box bg-slate-900 border-4 border-red-600 p-6 rounded-2xl max-w-[320px] w-full text-center text-white shadow-2xl relative">
+        <div class="text-5xl mb-2 animate-bounce">💣 💥</div>
+        <h2 class="pixel-text text-lg text-red-400 mb-1">GAME OVER!</h2>
+        <p class="text-xs text-red-200 font-semibold mb-3 leading-relaxed">
+          คุณเผลอคีบลูกระเบิด!<br>ตู้คีบระเบิดพังเสียหายหมดเลย!
+        </p>
+
+        <div class="bg-black/50 p-3 rounded-xl border border-red-500/40 mb-4 text-left text-xs space-y-1">
+          <div class="flex justify-between text-gray-300">
+            <span>ตุ๊กตาที่คีบได้รอบนี้:</span>
+            <b id="game-over-score" class="text-yellow-400">0 ตัว</b>
+          </div>
+          <div class="flex justify-between text-gray-300">
+            <span>สถานะ:</span>
+            <span class="text-red-400 font-bold">ตู้พังจากแรงระเบิด</span>
+          </div>
+        </div>
+
+        <button id="btn-restart-game" class="w-full py-3.5 bg-gradient-to-r from-red-600 via-orange-600 to-amber-600 hover:from-red-500 hover:to-orange-500 text-white font-bold rounded-xl pixel-text text-xs shadow-xl active:scale-95 transition-transform flex items-center justify-center gap-2 cursor-pointer z-50">
+          <span>🔄</span> <span>เริ่มเกมใหม่</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Collection Inventory Modal -->
+    <div id="collection-modal" class="modal-overlay">
+      <div class="modal-box bg-slate-900 border-4 border-teal-500 p-5 rounded-2xl max-w-[350px] w-full text-white shadow-2xl relative max-h-[80vh] flex flex-direction flex-col">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="pixel-text text-xs text-teal-300">MY COLLECTION</h2>
+          <button id="btn-close-collection" class="text-gray-400 hover:text-white text-lg font-bold">✕</button>
+        </div>
+        
+        <div id="collection-grid" class="grid grid-cols-3 gap-2 overflow-y-auto p-1 max-h-[50vh]">
+          <!-- Collection items rendered dynamically -->
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-slate-700 text-center text-xs text-slate-400">
+          คีบได้ทั้งหมด: <span id="collection-total-text" class="text-yellow-400 font-bold">0</span> ตัว
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // Firestore Integration for Game Progress Save / Load
+    let db = null;
+    let auth = null;
+    let currentUser = null;
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'claw-machine-app';
+
+    // In-memory fallback if Firestore is not present
+    let localSessionSave = null;
+
+    async function initCloudStorage() {
+      try {
+        if (typeof __firebase_config !== 'undefined') {
+          const firebaseConfig = JSON.parse(__firebase_config);
+          const app = initializeApp(firebaseConfig);
+          auth = getAuth(app);
+          db = getFirestore(app);
+
+          if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+            await signInWithCustomToken(auth, __initial_auth_token);
+          } else {
+            await signInAnonymously(auth);
+          }
+          currentUser = auth.currentUser;
+          updateSaveIndicator('☁️ เชื่อมต่อคลาวด์แล้ว');
+          // Auto load existing save on start if any
+          await loadGameProgress(true);
+        }
+      } catch (err) {
+        console.warn("Storage init notice:", err);
+        updateSaveIndicator('💾 บันทึกในเซสชัน');
+      }
+    }
+
+    function updateSaveIndicator(text) {
+      const el = document.getElementById('save-status-text');
+      if (el) el.innerText = text;
+    }
+
+    class SoundFX {
+      constructor() {
+        this.ctx = null;
+        this.enabled = true;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContext();
+        }
+        if (this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      playTone(freq, type, duration, delay = 0) {
+        if (!this.enabled) return;
+        try {
+          this.init();
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime + delay);
+          gain.gain.setValueAtTime(0.12, this.ctx.currentTime + delay);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + delay + duration);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(this.ctx.currentTime + delay);
+          osc.stop(this.ctx.currentTime + delay + duration);
+        } catch (e) {
+          console.warn("Audio error:", e);
+        }
+      }
+
+      move() {
+        this.playTone(180, 'square', 0.05);
+      }
+
+      drop() {
+        this.playTone(320, 'sine', 0.1);
+        this.playTone(260, 'sine', 0.15, 0.08);
+      }
+
+      grab() {
+        this.playTone(220, 'triangle', 0.1);
+        this.playTone(440, 'triangle', 0.15, 0.1);
+      }
+
+      win() {
+        [261.63, 329.63, 392.00, 523.25, 659.25].forEach((freq, idx) => {
+          this.playTone(freq, 'triangle', 0.25, idx * 0.1);
+        });
+      }
+
+      miss() {
+        this.playTone(250, 'sawtooth', 0.15);
+        this.playTone(160, 'sawtooth', 0.25, 0.15);
+      }
+
+      coin() {
+        this.playTone(987.77, 'sine', 0.1);
+        this.playTone(1318.51, 'sine', 0.25, 0.08);
+      }
+      stageClear() {
+        if (!this.enabled) return;
+        [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+          this.playTone(freq, 'triangle', 0.3, idx * 0.12);
+        });
+      }
+      explode() {
+        if (!this.enabled) return;
+        try {
+          this.init();
+          // White noise / Low frequency rumble for blast
+          const now = this.ctx.currentTime;
+          const osc1 = this.ctx.createOscillator();
+          const osc2 = this.ctx.createOscillator();
+          const gainNode = this.ctx.createGain();
+
+          osc1.type = 'sawtooth';
+          osc1.frequency.setValueAtTime(140, now);
+          osc1.frequency.exponentialRampToValueAtTime(30, now + 0.6);
+
+          osc2.type = 'square';
+          osc2.frequency.setValueAtTime(90, now);
+          osc2.frequency.exponentialRampToValueAtTime(20, now + 0.7);
+
+          gainNode.gain.setValueAtTime(0.3, now);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.7);
+
+          osc1.connect(gainNode);
+          osc2.connect(gainNode);
+          gainNode.connect(this.ctx.destination);
+
+          osc1.start(now);
+          osc2.start(now);
+          osc1.stop(now + 0.7);
+          osc2.stop(now + 0.7);
+        } catch (e) {
+          console.warn("Explode sound error:", e);
+        }
+      }
+    }
+
+    const sound = new SoundFX();
+    const PLUSHIE_TYPES = [
+      {
+        id: 'bear',
+        name: 'น้องหมีเท็ดดี้',
+        isHazard: false,
+        color: '#D97706',
+        svg: `<svg viewBox="0 0 100 100" class="w-full h-full">
+          <circle cx="28" cy="28" r="14" fill="#B45309"/>
+          <circle cx="28" cy="28" r="8" fill="#FDE68A"/>
+          <circle cx="72" cy="28" r="14" fill="#B45309"/>
+          <circle cx="72" cy="28" r="8" fill="#FDE68A"/>
+          <rect x="22" y="24" width="56" height="54" rx="18" fill="#D97706"/>
+          <ellipse cx="50" cy="54" rx="16" ry="12" fill="#FDE68A"/>
+          <ellipse cx="50" cy="48" rx="5" ry="3.5" fill="#78350F"/>
+          <path d="M50 51.5 L50 57" stroke="#78350F" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="38" cy="42" r="3.5" fill="#1F2937"/>
+          <circle cx="62" cy="42" r="3.5" fill="#1F2937"/>
+          <circle cx="39" cy="40.5" r="1.2" fill="#FFFFFF"/>
+          <circle cx="63" cy="40.5" r="1.2" fill="#FFFFFF"/>
+          <rect x="26" y="70" width="16" height="16" rx="8" fill="#B45309"/>
+          <rect x="58" y="70" width="16" height="16" rx="8" fill="#B45309"/>
+        </svg>`
+      },
+      {
+        id: 'bomb',
+        name: '💣 ลูกระเบิดมรณะ!',
+        isHazard: true,
+        color: '#111827',
+        svg: `<svg viewBox="0 0 100 100" class="w-full h-full bomb-pulse">
+          <circle cx="72" cy="14" r="5" fill="#F59E0B" />
+          <polygon points="72,6 75,12 81,14 75,16 72,22 69,16 63,14 69,12" fill="#EF4444" />
+          <path d="M50 28 Q 65 18 68 15" stroke="#D97706" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <rect x="42" y="25" width="16" height="7" rx="2" fill="#4B5563"/>
+          <circle cx="50" cy="60" r="34" fill="#1F2937" stroke="#111827" stroke-width="3"/>
+          <ellipse cx="38" cy="46" rx="9" ry="5" fill="#4B5563" transform="rotate(-30 38 46)"/>
+          <circle cx="43" cy="58" r="4.5" fill="#EF4444"/>
+          <circle cx="57" cy="58" r="4.5" fill="#EF4444"/>
+          <path d="M44 69 L44 75 M50 68 L50 76 M56 69 L56 75" stroke="#EF4444" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>`
+      },
+      {
+        id: 'bunny',
+        name: 'ต่ายขาวโมจิ',
+        isHazard: false,
+        color: '#F9FAFB',
+        svg: `<svg viewBox="0 0 100 100" class="w-full h-full">
+          <rect x="30" y="8" width="14" height="32" rx="7" fill="#F3F4F6"/>
+          <rect x="33" y="14" width="8" height="20" rx="4" fill="#FBCFE8"/>
+          <rect x="56" y="8" width="14" height="32" rx="7" fill="#F3F4F6"/>
+          <rect x="59" y="14" width="8" height="20" rx="4" fill="#FBCFE8"/>
+          <rect x="24" y="32" width="52" height="48" rx="20" fill="#FFFFFF"/>
+          <circle cx="34" cy="56" r="4" fill="#F472B6" opacity="0.6"/>
+          <circle cx="66" cy="56" r="4" fill="#F472B6" opacity="0.6"/>
+          <circle cx="38" cy="50" r="3" fill="#111827"/>
+          <circle cx="62" cy="50" r="3" fill="#111827"/>
+          <polygon points="48,54 52,54 50,57" fill="#EC4899"/>
+          <circle cx="35" cy="78" r="8" fill="#F3F4F6"/>
+          <circle cx="65" cy="78" r="8" fill="#F3F4F6"/>
+        </svg>`
+      },
+      {
+        id: 'penguin',
+        name: 'เพนกวินปุ๊กปิ๊ก',
+        color: '#0284C7',
+        isHazard: false,
+        svg: `<svg viewBox="0 0 100 100" class="w-full h-full">
+          <rect x="24" y="24" width="52" height="54" rx="22" fill="#0284C7"/>
+          <ellipse cx="50" cy="56" rx="18" ry="20" fill="#FFFFFF"/>
+          <path d="M22 42 Q14 55 24 64 Z" fill="#0369A1"/>
+          <path d="M78 42 Q86 55 76 64 Z" fill="#0369A1"/>
+          <circle cx="39" cy="42" r="3.5" fill="#111827"/>
+          <circle cx="61" cy="42" r="3.5" fill="#111827"/>
+          <circle cx="40" cy="40.5" r="1.2" fill="#FFFFFF"/>
+          <circle cx="62" cy="40.5" r="1.2" fill="#FFFFFF"/>
+          <polygon points="44,48 56,48 50,56" fill="#F59E0B"/>
+          <ellipse cx="38" cy="78" rx="8" ry="5" fill="#F59E0B"/>
+          <ellipse cx="62" cy="78" rx="8" ry="5" fill="#F59E0B"/>
+        </svg>`
+      },
+      {
+        id: 'cat',
+        name: 'น้องแมวส้มบ๊อก',
+        color: '#F97316',
+        isHazard: false,
+        svg: `<svg viewBox="0 0 100 100" class="w-full h-full">
+          <polygon points="26,40 36,20 46,36" fill="#EA580C"/>
+          <polygon points="30,37 36,25 42,35" fill="#FED7AA"/>
+          <polygon points="74,40 64,20 54,36" fill="#EA580C"/>
+          <polygon points="70,37 64,25 58,35" fill="#FED7AA"/>
+          <rect x="24" y="32" width="52" height="48" rx="16" fill="#FB923C"/>
+          <path d="M46 32 L46 38 M50 32 L50 40 M54 32 L54 38" stroke="#C2410C" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="38" cy="48" r="3.5" fill="#18181B"/>
+          <circle cx="62" cy="48" r="3.5" fill="#18181B"/>
+          <line x1="22" y1="52" x2="34" y2="52" stroke="#431407" stroke-width="2"/>
+          <line x1="22" y1="56" x2="34" y2="58" stroke="#431407" stroke-width="2"/>
+          <line x1="78" y1="52" x2="66" y2="52" stroke="#431407" stroke-width="2"/>
+          <line x1="78" y1="56" x2="66" y2="58" stroke="#431407" stroke-width="2"/>
+          <path d="M46 56 Q50 60 54 56" stroke="#431407" stroke-width="2" fill="none"/>
+        </svg>`
+      },
+      {
+        id: 'slime',
+        name: 'สไลม์มินต์เย็น',
+        color: '#10B981',
+        isHazard: false,
+        svg: `<svg viewBox="0 0 100 100" class="w-full h-full">
+          <path d="M50 20 C28 20 20 52 20 68 C20 80 34 84 50 84 C66 84 80 80 80 68 C80 52 72 20 50 20 Z" fill="#34D399"/>
+          <ellipse cx="40" cy="52" rx="3.5" ry="5.5" fill="#064E3B"/>
+          <ellipse cx="60" cy="52" rx="3.5" ry="5.5" fill="#064E3B"/>
+          <circle cx="41" cy="50" r="1.5" fill="#FFFFFF"/>
+          <circle cx="61" cy="50" r="1.5" fill="#FFFFFF"/>
+          <circle cx="34" cy="58" r="4" fill="#059669" opacity="0.5"/>
+          <circle cx="66" cy="58" r="4" fill="#059669" opacity="0.5"/>
+          <path d="M48 64 Q50 68 52 64" stroke="#064E3B" stroke-width="2" fill="none" stroke-linecap="round"/>
+        </svg>`
+      },
+      {
+        id: 'robot',
+        name: 'บ๊อกซี่โรบ็อต',
+        isHazard: false,
+        color: '#8B5CF6',
+        svg: `<svg viewBox="0 0 100 100" class="w-full h-full">
+          <line x1="50" y1="18" x2="50" y2="28" stroke="#4C1D95" stroke-width="3"/>
+          <circle cx="50" cy="16" r="4" fill="#F59E0B"/>
+          <rect x="25" y="28" width="50" height="46" rx="8" fill="#8B5CF6" stroke="#5B21B6" stroke-width="3"/>
+          <rect x="32" y="36" width="36" height="22" rx="4" fill="#1E1B4B"/>
+          <rect x="38" y="42" width="6" height="6" fill="#38BDF8"/>
+          <rect x="56" y="42" width="6" height="6" fill="#38BDF8"/>
+          <rect x="20" y="44" width="5" height="10" rx="2" fill="#D8B4FE"/>
+          <rect x="75" y="44" width="5" height="10" rx="2" fill="#D8B4FE"/>
+          <rect x="34" y="74" width="10" height="12" rx="4" fill="#6D28D9"/>
+          <rect x="56" y="74" width="10" height="12" rx="4" fill="#6D28D9"/>
+        </svg>`
+      }
+    ];
+
+    const state = {
+      level: 1,
+      maxLevels: 10,
+      coins: 10,
+      hearts: 3,
+      maxHearts: 3,
+      inventory: [],
+      prizes: [],
+      clawX: 110,
+      cableHeight: 35,
+      isMovingLeft: false,
+      isMovingRight: false,
+      isGrabbing: false,
+      state: 'TITLE', // TITLE, IDLE, LOWERING, PINCHING, RAISING, RETURNING, DROPPING, GAME_OVER
+      clawSpeed: 3.5,
+      minX: 20,
+      maxX: 340,
+      cableMin: 35,
+      cableMax: 270,
+      grabbedPrize: null
+    };
+
+    let activeTimers = [];
+    let animationFrameId = null;
+
+    function addTimeout(fn, delay) {
+      const id = setTimeout(() => {
+        activeTimers = activeTimers.filter(t => t !== id);
+        fn();
+      }, delay);
+      activeTimers.push(id);
+      return id;
+    }
+
+    function clearAllTimers() {
+      activeTimers.forEach(id => clearTimeout(id));
+      activeTimers = [];
+    }
+
+    function ensureGameLoop() {
+      if (!animationFrameId) {
+        animationFrameId = requestAnimationFrame(gameLoop);
+      }
+    }
+
+    // DOM Elements
+    const chamberEl = document.getElementById('glass-chamber');
+    const prizesContainer = document.getElementById('prizes-container');
+    const craneAssembly = document.getElementById('crane-assembly');
+    const craneCable = document.getElementById('crane-cable');
+    const clawHead = document.getElementById('claw-head');
+    const coinCountEl = document.getElementById('coin-count');
+    const prizeWonCountEl = document.getElementById('prize-won-count');
+    const stateTextEl = document.getElementById('machine-state-text');
+    const toastEl = document.getElementById('status-toast');
+    const stageBadgeEl = document.getElementById('stage-badge');
+    const remainingDollsEl = document.getElementById('remaining-dolls-text');
+    const bombCountBadge = document.getElementById('bomb-count-badge');
+    const heartsDisplay = document.getElementById('hearts-display');
+
+    const btnLeft = document.getElementById('btn-left');
+    const btnRight = document.getElementById('btn-right');
+    const btnGrab = document.getElementById('btn-grab');
+    const btnInsertCoin = document.getElementById('btn-insert-coin');
+    const btnSoundToggle = document.getElementById('btn-sound-toggle');
+    const btnInventory = document.getElementById('btn-inventory');
+
+    const startMenuModal = document.getElementById('start-menu-modal');
+    const btnStartNew = document.getElementById('btn-start-new');
+    const btnStartContinue = document.getElementById('btn-start-continue');
+
+    const btnSettingsGear = document.getElementById('btn-settings-gear');
+    const settingsModal = document.getElementById('settings-modal');
+    const btnCloseSettings = document.getElementById('btn-close-settings');
+    const btnMenuResume = document.getElementById('btn-menu-resume');
+    const btnMenuNewGame = document.getElementById('btn-menu-new-game');
+    const btnMenuSave = document.getElementById('btn-menu-save');
+    const btnMenuTitle = document.getElementById('btn-menu-title');
+    const btnSettingsSoundToggle = document.getElementById('btn-settings-sound-toggle');
+
+    const stageClearModal = document.getElementById('stage-clear-modal');
+    const stageClearTitle = document.getElementById('stage-clear-title');
+    const nextStagePreview = document.getElementById('next-stage-preview');
+    const btnNextStage = document.getElementById('btn-next-stage');
+
+    const gameWonModal = document.getElementById('game-won-modal');
+    const finalWonCount = document.getElementById('final-won-count');
+    const btnRestartVictory = document.getElementById('btn-restart-victory');
+
+    const collectionModal = document.getElementById('collection-modal');
+    const collectionGrid = document.getElementById('collection-grid');
+    const btnCloseCollection = document.getElementById('btn-close-collection');
+    const collectionTotalText = document.getElementById('collection-total-text');
+
+    const explosionEffect = document.getElementById('explosion-effect');
+    const gameOverModal = document.getElementById('game-over-modal');
+    const gameOverScore = document.getElementById('game-over-score');
+    const btnRestartGame = document.getElementById('btn-restart-game');
+    const machineContainer = document.querySelector('.machine-container');
+
+    function updateDimensions() {
+      const rect = chamberEl.getBoundingClientRect();
+      state.minX = 15;
+      state.maxX = rect.width - 55;
+      state.cableMax = rect.height - 120;
+    }
+
+    function showToast(msg) {
+      toastEl.innerText = msg;
+      toastEl.style.opacity = '1';
+      setTimeout(() => {
+        toastEl.style.opacity = '0';
+      }, 1800);
+    }
+
+    async function saveGameProgress() {
+      const saveData = {
+        level: state.level,
+        coins: state.coins,
+        hearts: state.hearts,
+        maxHearts: state.maxHearts,
+        inventory: state.inventory.map(i => i.id),
+        timestamp: Date.now()
+      };
+
+      localSessionSave = saveData;
+
+      if (db && currentUser) {
+        try {
+          const userDocRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'claw_progress', 'save');
+          await setDoc(userDocRef, saveData);
+          updateSaveIndicator('☁️ บันทึกคลาวด์แล้ว');
+        } catch (e) {
+          console.warn("Save failed:", e);
+        }
+      } else {
+        updateSaveIndicator('💾 บันทึกแล้ว');
+      }
+    }
+
+    async function loadGameProgress(isSilent = false) {
+      let data = localSessionSave;
+
+      if (db && currentUser) {
+        try {
+          const userDocRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'claw_progress', 'save');
+          const snap = await getDoc(userDocRef);
+          if (snap.exists()) {
+            data = snap.data();
+          }
+        } catch (e) {
+          console.warn("Load failed:", e);
+        }
+      }
+
+      if (!data) {
+        if (!isSilent) showToast('ยังไม่มีข้อมูลบันทึกเดิม');
+        return false;
+      }
+
+      state.level = Math.min(10, Math.max(1, data.level || 1));
+      state.coins = Math.max(1, data.coins || 10);
+      state.maxHearts = Math.max(3, data.maxHearts || (3 + (state.level - 1)));
+      state.hearts = Math.max(1, data.hearts || state.maxHearts);
+      state.inventory = (data.inventory || []).map(id => PLUSHIE_TYPES.find(p => p.id === id)).filter(Boolean);
+
+      startMenuModal.classList.remove('active');
+      resetToStage(state.level);
+      if (!isSilent) showToast(`เล่นต่อที่ด่าน ${state.level} สำเร็จ!`);
+      return true;
+    }
+
+    function startNewGame() {
+      startMenuModal.classList.remove('active');
+      state.level = 1;
+      state.coins = 10;
+      state.maxHearts = 3;
+      state.hearts = 3;
+      state.inventory = [];
+      resetToStage(1);
+      saveGameProgress();
+      showToast('เริ่มเกมใหม่ที่ด่าน 1 แล้ว!');
+    }
+
+    function resetToStage(levelNum) {
+      clearAllTimers();
+      gameOverModal.classList.remove('active');
+      stageClearModal.classList.remove('active');
+      gameWonModal.classList.remove('active');
+      explosionEffect.classList.remove('active');
+      settingsModal.classList.remove('active');
+      machineContainer.classList.remove('shake-screen');
+
+      state.level = levelNum;
+      state.isMovingLeft = false;
+      state.isMovingRight = false;
+      state.isGrabbing = false;
+      state.state = 'IDLE';
+      state.clawX = 110;
+      state.cableHeight = state.cableMin;
+      state.grabbedPrize = null;
+
+      craneCable.style.height = `${state.cableMin}px`;
+      craneAssembly.style.transform = `translateX(${state.clawX}px)`;
+      clawHead.classList.remove('claw-grab');
+
+      spawnPrizesForLevel(state.level);
+      resetControlsToIdle();
+      ensureGameLoop();
+    }
+
+    function calculateLevelConfig(level) {
+      // Stage 1 starts with 3 dolls.
+      // From Stage 6 onwards: increases by 3 each stage.
+      // Stage 1 to 5: 3, 4, 5, 6, 7 dolls
+      // Stage 6+: 7 + (level - 5) * 3  (Stage 6: 10, Stage 7: 13, Stage 8: 16, Stage 9: 19, Stage 10: 22)
+      let safeCount = 3;
+      if (level <= 5) {
+        safeCount = 3 + (level - 1);
+      } else {
+        safeCount = 7 + (level - 5) * 3;
+      }
+
+      // Bombs: increases by 1 each level (Stage 1: 1, Stage 2: 2, Stage 3: 3 ... Stage 10: 10)
+      const bombCount = level;
+
+      return { safeCount, bombCount };
+    }
+
+    function spawnPrizesForLevel(level) {
+      prizesContainer.innerHTML = '';
+      state.prizes = [];
+      const rect = chamberEl.getBoundingClientRect();
+      const bottomAreaY = rect.height - 75;
+
+      const startX = 95;
+      const endX = rect.width - 55;
+
+      const config = calculateLevelConfig(level);
+      const safeCount = config.safeCount;
+      const bombCount = config.bombCount;
+
+      const typesToSpawn = [];
+
+      // Spawn bombs
+      const bombTemplate = PLUSHIE_TYPES.find(p => p.id === 'bomb');
+      for (let b = 0; b < bombCount; b++) {
+        typesToSpawn.push(bombTemplate);
+      }
+
+      // Spawn safe plushies
+      const safePlushies = PLUSHIE_TYPES.filter(p => !p.isHazard);
+      for (let s = 0; s < safeCount; s++) {
+        typesToSpawn.push(safePlushies[Math.floor(Math.random() * safePlushies.length)]);
+      }
+
+      // Shuffle position order
+      typesToSpawn.sort(() => Math.random() - 0.5);
+
+      for (let i = 0; i < typesToSpawn.length; i++) {
+        const type = typesToSpawn[i];
+        const x = startX + Math.random() * (endX - startX);
+        const yOffset = (i % 3 === 0) ? Math.random() * 32 : Math.random() * 16;
+        const y = bottomAreaY - yOffset;
+        const rot = (Math.random() - 0.5) * 26;
+
+        const dollEl = document.createElement('div');
+        dollEl.className = 'doll';
+        dollEl.style.left = `${x}px`;
+        dollEl.style.top = `${y}px`;
+        dollEl.style.transform = `rotate(${rot}deg)`;
+        dollEl.innerHTML = type.svg;
+
+        prizesContainer.appendChild(dollEl);
+
+        state.prizes.push({
+          id: 'prize_' + i + '_' + Date.now(),
+          type: type,
+          x: x,
+          y: y,
+          rotation: rot,
+          element: dollEl,
+          isGrabbed: false
+        });
+      }
+
+      updateUI();
+    }
+
+    function setupControls() {
+      // Start Menu Events
+      btnStartNew.addEventListener('click', () => {
+        sound.init();
+        startNewGame();
+      });
+
+      btnStartContinue.addEventListener('click', async () => {
+        sound.init();
+        const success = await loadGameProgress(false);
+        if (!success) {
+          showToast('ไม่มีเซฟเดิม เริ่มเกมใหม่ให้แล้ว');
+          startNewGame();
+        }
+      });
+
+      // Settings Gear Button
+      btnSettingsGear.addEventListener('click', () => {
+        settingsModal.classList.add('active');
+      });
+
+      btnCloseSettings.addEventListener('click', () => {
+        settingsModal.classList.remove('active');
+      });
+
+      btnMenuResume.addEventListener('click', () => {
+        settingsModal.classList.remove('active');
+      });
+
+      btnMenuNewGame.addEventListener('click', () => {
+        settingsModal.classList.remove('active');
+        startNewGame();
+      });
+
+      btnMenuSave.addEventListener('click', () => {
+        saveGameProgress();
+        showToast('บันทึกความคืบหน้าสำเร็จ!');
+      });
+
+      btnMenuTitle.addEventListener('click', () => {
+        settingsModal.classList.remove('active');
+        startMenuModal.classList.add('active');
+        state.state = 'TITLE';
+      });
+
+      btnSettingsSoundToggle.addEventListener('click', () => {
+        sound.enabled = !sound.enabled;
+        const txt = sound.enabled ? '🔊 เปิดเสียง' : '🔇 ปิดเสียง';
+        btnSettingsSoundToggle.innerText = txt;
+        btnSoundToggle.innerText = txt;
+      });
+
+      // Button Hold handling for smooth mobile movement
+      const handleHold = (btn, dir) => {
+        const start = (e) => {
+          e.preventDefault();
+          sound.init();
+          if (state.isGrabbing || state.state === 'TITLE') return;
+          btn.classList.add('pressed');
+          if (dir === 'left') state.isMovingLeft = true;
+          if (dir === 'right') state.isMovingRight = true;
+        };
+
+        const stop = (e) => {
+          if (e) e.preventDefault();
+          btn.classList.remove('pressed');
+          if (dir === 'left') state.isMovingLeft = false;
+          if (dir === 'right') state.isMovingRight = false;
+        };
+
+        btn.addEventListener('pointerdown', start);
+        window.addEventListener('pointerup', stop);
+        window.addEventListener('pointercancel', stop);
+      };
+
+      handleHold(btnLeft, 'left');
+      handleHold(btnRight, 'right');
+
+      // Drop / Grab Button
+      btnGrab.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        sound.init();
+        if (state.isGrabbing || state.state === 'TITLE') return;
+        triggerGrabAction();
+      });
+
+      // Keyboard support
+      window.addEventListener('keydown', (e) => {
+        if (e.repeat) return;
+        sound.init();
+        if (state.isGrabbing || state.state === 'TITLE') return;
+        if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+          state.isMovingLeft = true;
+          btnLeft.classList.add('pressed');
+        }
+        if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+          state.isMovingRight = true;
+          btnRight.classList.add('pressed');
+        }
+        if (e.key === ' ' || e.key === 'Enter' || e.key === 'ArrowDown') {
+          triggerGrabAction();
+        }
+      });
+
+      window.addEventListener('keyup', (e) => {
+        if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+          state.isMovingLeft = false;
+          btnLeft.classList.remove('pressed');
+        }
+        if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+          state.isMovingRight = false;
+          btnRight.classList.remove('pressed');
+        }
+      });
+
+      // Insert Coin
+      btnInsertCoin.addEventListener('click', () => {
+        sound.coin();
+        state.coins += 5;
+        saveGameProgress();
+        updateUI();
+        showToast('+5 เหรียญแล้ว!');
+      });
+
+      // Next Stage Button
+      btnNextStage.addEventListener('click', () => {
+        stageClearModal.classList.remove('active');
+        state.level++;
+        state.coins += 5; // Stage clear bonus coins
+        state.maxHearts += 1; // Gain 1 heart per cleared stage!
+        state.hearts = state.maxHearts; // Fully refill hearts
+        resetToStage(state.level);
+        saveGameProgress();
+        showToast(`เข้าสู่ด่าน ${state.level}! โบนัส +5🪙 และ +1❤️`);
+      });
+
+      // Restart after final victory
+      btnRestartVictory.addEventListener('click', () => {
+        startNewGame();
+      });
+
+      // Sound Toggle in status footer
+      btnSoundToggle.addEventListener('click', () => {
+        sound.enabled = !sound.enabled;
+        const txt = sound.enabled ? '🔊 เปิดเสียง' : '🔇 ปิดเสียง';
+        btnSoundToggle.innerText = txt;
+        btnSettingsSoundToggle.innerText = txt;
+      });
+
+      // Inventory & Modals
+      btnInventory.addEventListener('click', openInventoryModal);
+      btnCloseCollection.addEventListener('click', () => collectionModal.classList.remove('active'));
+
+      // Restart Game button after Game Over
+      const handleRestartTrigger = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        restartGame();
+      };
+
+      btnRestartGame.addEventListener('pointerdown', (e) => e.stopPropagation());
+      btnRestartGame.addEventListener('pointerup', handleRestartTrigger);
+      btnRestartGame.addEventListener('click', handleRestartTrigger);
+    }
+
+    function triggerGrabAction() {
+      if (state.coins <= 0) {
+        showToast('เหรียญหมด! หยอดเหรียญก่อนนะ');
+        sound.miss();
+        return;
+      }
+
+      state.coins--;
+      updateUI();
+      state.isGrabbing = true;
+      state.isMovingLeft = false;
+      state.isMovingRight = false;
+      state.state = 'LOWERING';
+      stateTextEl.innerText = 'กำลังหย่อนก้าม...';
+      stateTextEl.className = 'text-yellow-400 font-bold text-[11px]';
+      btnGrab.disabled = true;
+      btnLeft.disabled = true;
+      btnRight.disabled = true;
+
+      sound.drop();
+      if ('vibrate' in navigator) navigator.vibrate(40);
+    }
+
+    function checkCollisionAndGrab() {
+      const clawTipX = state.clawX + 27;
+      const clawTipY = 14 + 18 + state.cableHeight + 35;
+
+      let closestPrize = null;
+      let minDistance = 999;
+
+      state.prizes.forEach(prize => {
+        const dollCenterX = prize.x + 24;
+        const dollCenterY = prize.y + 24;
+        const dist = Math.hypot(clawTipX - dollCenterX, clawTipY - dollCenterY);
+
+        if (dist < 40 && dist < minDistance) {
+          minDistance = dist;
+          closestPrize = prize;
+        }
+      });
+
+      if (closestPrize) {
+        const catchProbability = 0.82;
+        const willHold = Math.random() < catchProbability;
+        return { prize: closestPrize, willHold: willHold };
+      }
+
+      return null;
+    }
+
+    let lastSoundTime = 0;
+
+    function gameLoop(timestamp) {
+      animationFrameId = requestAnimationFrame(gameLoop);
+
+      // Horizontal Movement
+      if (!state.isGrabbing && state.state === 'IDLE') {
+        if (state.isMovingLeft && state.clawX > state.minX) {
+          state.clawX -= state.clawSpeed;
+          if (timestamp - lastSoundTime > 120) {
+            sound.move();
+            lastSoundTime = timestamp;
+          }
+        }
+        if (state.isMovingRight && state.clawX < state.maxX) {
+          state.clawX += state.clawSpeed;
+          if (timestamp - lastSoundTime > 120) {
+            sound.move();
+            lastSoundTime = timestamp;
+          }
+        }
+        craneAssembly.style.transform = `translateX(${state.clawX}px)`;
+      }
+
+      // Grabbing Sequence States
+      if (state.isGrabbing) {
+        if (state.state === 'LOWERING') {
+          state.cableHeight += 3.2;
+          craneCable.style.height = `${state.cableHeight}px`;
+
+          if (state.cableHeight >= state.cableMax) {
+            state.state = 'PINCHING';
+            clawHead.classList.add('claw-grab');
+            sound.grab();
+            if ('vibrate' in navigator) navigator.vibrate(80);
+
+            const grabResult = checkCollisionAndGrab();
+            if (grabResult) {
+              state.grabbedPrize = grabResult.prize;
+              state.willHoldPrize = grabResult.willHold;
+              state.grabbedPrize.element.classList.add('grabbed');
+
+              // Hazard Check: If grabbed a bomb, take damage (-1 heart)
+              if (state.grabbedPrize.type.isHazard) {
+                addTimeout(() => {
+                  triggerBombExplosion(state.grabbedPrize);
+                }, 350);
+                return;
+              }
+            } else {
+              state.grabbedPrize = null;
+            }
+
+            addTimeout(() => {
+              if (state.state === 'PINCHING') {
+                state.state = 'RAISING';
+                stateTextEl.innerText = 'กำลังดึงขึ้น...';
+              }
+            }, 550);
+          }
+        } else if (state.state === 'RAISING') {
+          state.cableHeight -= 2.8;
+          craneCable.style.height = `${state.cableHeight}px`;
+
+          if (state.grabbedPrize) {
+            state.grabbedPrize.x = state.clawX + 3;
+            state.grabbedPrize.y = 14 + 18 + state.cableHeight + 10;
+            state.grabbedPrize.element.style.left = `${state.grabbedPrize.x}px`;
+            state.grabbedPrize.element.style.top = `${state.grabbedPrize.y}px`;
+
+            if (!state.willHoldPrize && state.cableHeight <= state.cableMax * 0.5) {
+              dropMidAir();
+            }
+          }
+
+          if (state.cableHeight <= state.cableMin) {
+            state.cableHeight = state.cableMin;
+            state.state = 'RETURNING';
+            stateTextEl.innerText = 'กำลังเลื่อนไปช่องรับของ...';
+          }
+        } else if (state.state === 'RETURNING') {
+          const chuteTargetX = 22;
+          if (state.clawX > chuteTargetX) {
+            state.clawX -= 2.6;
+            craneAssembly.style.transform = `translateX(${state.clawX}px)`;
+
+            if (state.grabbedPrize) {
+              state.grabbedPrize.x = state.clawX + 3;
+              state.grabbedPrize.element.style.left = `${state.grabbedPrize.x}px`;
+            }
+          } else {
+            state.state = 'DROPPING';
+            clawHead.classList.remove('claw-grab');
+            
+            if (state.grabbedPrize) {
+              const wonItem = state.grabbedPrize;
+              state.grabbedPrize = null;
+              dollDropIntoChute(wonItem);
+            } else {
+              sound.miss();
+              addTimeout(resetControlsToIdle, 600);
+            }
+          }
+        }
+      }
+    }
+
+    function dropMidAir() {
+      const dropped = state.grabbedPrize;
+      state.grabbedPrize = null;
+      sound.miss();
+      showToast('หลุดมือซะแล้ว! เกือบได้แล้วนะ');
+
+      if (dropped) {
+        dropped.element.classList.remove('grabbed');
+        dropped.element.classList.add('falling');
+        const rect = chamberEl.getBoundingClientRect();
+        dropped.y = rect.height - 75;
+        dropped.element.style.top = `${dropped.y}px`;
+        addTimeout(() => {
+          dropped.element.classList.remove('falling');
+        }, 450);
+      }
+    }
+
+    function triggerBombExplosion(bombPrize) {
+      clearAllTimers();
+      sound.explode();
+      if ('vibrate' in navigator) navigator.vibrate([200, 100, 400]);
+
+      machineContainer.classList.add('shake-screen');
+      addTimeout(() => machineContainer.classList.remove('shake-screen'), 650);
+
+      explosionEffect.classList.add('active');
+
+      if (bombPrize && bombPrize.element) {
+        bombPrize.element.remove();
+        state.prizes = state.prizes.filter(p => p.id !== bombPrize.id);
+      }
+
+      state.hearts--;
+      updateUI();
+
+      if (state.hearts <= 0) {
+        // Game Over when all hearts are lost
+        state.isGrabbing = true;
+        state.state = 'GAME_OVER';
+        stateTextEl.innerText = '💥 หัวใจหมด! GAME OVER!';
+        stateTextEl.className = 'text-red-500 font-bold text-[11px] animate-pulse';
+
+        addTimeout(() => {
+          explosionEffect.classList.remove('active');
+          gameOverScore.innerText = `${state.inventory.length} ตัว (ด่าน ${state.level})`;
+          gameOverModal.classList.add('active');
+        }, 700);
+      } else {
+        // Still has hearts left! Show warning toast and continue stage
+        addTimeout(() => {
+          explosionEffect.classList.remove('active');
+          showToast(`💥 โดนระเบิด! เสีย 1 หัวใจ (เหลือ ${state.hearts} ❤️)`);
+          
+          // Reset claw back to top
+          state.cableHeight = state.cableMin;
+          craneCable.style.height = `${state.cableHeight}px`;
+          clawHead.classList.remove('claw-grab');
+          resetControlsToIdle();
+        }, 650);
+      }
+    }
+
+    function restartGame() {
+      // Reset hearts for current stage and retry
+      state.hearts = state.maxHearts;
+      resetToStage(state.level);
+      showToast(`ลองใหม่ด่าน ${state.level}! มีหัวใจ ${state.hearts} ดวง ❤️`);
+    }
+
+    function dollDropIntoChute(wonItem) {
+      sound.coin();
+      if ('vibrate' in navigator) navigator.vibrate([80, 40, 120]);
+
+      // Animate falling down into the chute
+      wonItem.element.classList.remove('grabbed');
+      wonItem.element.classList.add('falling');
+      wonItem.y = chamberEl.getBoundingClientRect().height + 50;
+      wonItem.element.style.top = `${wonItem.y}px`;
+
+      // Add to inventory and remove from active list
+      state.inventory.push(wonItem.type);
+      state.prizes = state.prizes.filter(p => p.id !== wonItem.id);
+
+      // Clean up DOM node after fall animation
+      addTimeout(() => {
+        if (wonItem.element && wonItem.element.parentNode) {
+          wonItem.element.remove();
+        }
+      }, 450);
+
+      // Save progress automatically
+      saveGameProgress();
+
+      // Check remaining safe dolls in this stage
+      const remainingSafe = state.prizes.filter(p => !p.type.isHazard).length;
+
+      if (remainingSafe > 0) {
+        showToast(`คีบได้ +1 ${wonItem.type.name}! (เหลืออีก ${remainingSafe} ตัว)`);
+        addTimeout(resetControlsToIdle, 500);
+      } else {
+        // All safe dolls in this stage are collected! Stage Clear!
+        addTimeout(() => {
+          triggerStageClear();
+        }, 600);
+      }
+    }
+
+    function triggerStageClear() {
+      sound.stageClear();
+      if ('vibrate' in navigator) navigator.vibrate([150, 80, 150, 80, 300]);
+
+      if (state.level >= state.maxLevels) {
+        finalWonCount.innerText = `${state.inventory.length} ตัว`;
+        gameWonModal.classList.add('active');
+      } else {
+        stageClearTitle.innerText = `STAGE ${state.level} CLEARED!`;
+        const nextLvl = state.level + 1;
+        const config = calculateLevelConfig(nextLvl);
+        nextStagePreview.innerText = `ด่าน ${nextLvl} (ตุ๊กตา ${config.safeCount} ตัว, ระเบิด ${config.bombCount} ลูก)`;
+        stageClearModal.classList.add('active');
+      }
+    }
+
+    function resetControlsToIdle() {
+      state.isGrabbing = false;
+      state.state = 'IDLE';
+      clawHead.classList.remove('claw-grab');
+      btnGrab.disabled = false;
+      btnLeft.disabled = false;
+      btnRight.disabled = false;
+      updateUI();
+    }
+
+    function updateUI() {
+      coinCountEl.innerText = state.coins;
+      prizeWonCountEl.innerText = state.inventory.length;
+      collectionTotalText.innerText = state.inventory.length;
+      stageBadgeEl.innerText = `LV.${state.level}/10`;
+
+      // Render Hearts
+      let heartsHtml = '';
+      for (let i = 0; i < state.maxHearts; i++) {
+        if (i < state.hearts) {
+          heartsHtml += '<span class="text-rose-500 scale-110">❤️</span>';
+        } else {
+          heartsHtml += '<span class="text-gray-600 opacity-40">🖤</span>';
+        }
+      }
+      heartsDisplay.innerHTML = heartsHtml;
+
+      const config = calculateLevelConfig(state.level);
+      bombCountBadge.innerText = `💣 ${config.bombCount} ลูก`;
+
+      const remainingSafe = state.prizes.filter(p => !p.type.isHazard).length;
+      remainingDollsEl.innerText = remainingSafe;
+
+      if (!state.isGrabbing && state.state !== 'GAME_OVER' && state.state !== 'TITLE') {
+        stateTextEl.innerText = 'พร้อมเล่น';
+        stateTextEl.className = 'text-green-400 font-bold text-[11px]';
+      }
+    }
+
+    function openInventoryModal() {
+      collectionGrid.innerHTML = '';
+      if (state.inventory.length === 0) {
+        collectionGrid.innerHTML = `<div class="col-span-3 text-center py-8 text-gray-400 text-xs">ยังไม่มีตุ๊กตาที่คีบได้<br>ลองกดคีบดูเลย!</div>`;
+      } else {
+        const counts = {};
+        state.inventory.forEach(item => {
+          counts[item.id] = (counts[item.id] || 0) + 1;
+        });
+
+        PLUSHIE_TYPES.filter(p => !p.isHazard).forEach(type => {
+          if (counts[type.id]) {
+            const card = document.createElement('div');
+            card.className = 'bg-slate-800 border border-teal-500/40 rounded-xl p-2 flex flex-col items-center relative shadow';
+            card.innerHTML = `
+              <div class="w-14 h-14 p-1">${type.svg}</div>
+              <span class="text-[10px] text-gray-200 mt-1 font-semibold text-center leading-tight truncate w-full">${type.name}</span>
+              <span class="absolute top-1 right-1 bg-teal-600 text-white font-bold pixel-text text-[8px] px-1.5 py-0.5 rounded-full">x${counts[type.id]}</span>
+            `;
+            collectionGrid.appendChild(card);
+          }
+        });
+      }
+      collectionModal.classList.add('active');
+    }
+
+    window.addEventListener('load', () => {
+      updateDimensions();
+      setupControls();
+      updateUI();
+      ensureGameLoop();
+      initCloudStorage();
+    });
+
+    window.addEventListener('resize', () => {
+      updateDimensions();
+    });
+  </script>
+</body>
+</html>
