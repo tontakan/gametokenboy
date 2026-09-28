@@ -1,0 +1,1466 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Mecha Brick Workshop Mobile</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;700&display=swap');
+
+        :root {
+            --cutting-mat: #1a4f32;
+            --grid-line: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--cutting-mat);
+            background-image: 
+                linear-gradient(var(--grid-line) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+            background-size: 20px 20px;
+            font-family: 'Chakra Petch', sans-serif;
+            overflow: hidden;
+            touch-action: none; /* Crucial for custom touch handling */
+            color: white;
+            user-select: none;
+            -webkit-user-select: none; /* Safari */
+        }
+
+        #game-container {
+            width: 100vw;
+            height: 100vh;
+            /* Height for mobile browsers to avoid address bar hiding issues */
+            height: 100dvh; 
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .ui-panel {
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #5a5a5a;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.7), inset 0 0 10px rgba(255,255,255,0.1);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+
+        .mecha-part {
+            position: absolute;
+            cursor: grab;
+            filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.5));
+            transition: transform 0.1s;
+            /* Ensure parts have a minimum size for touch */
+            min-width: 40px;
+            min-height: 40px;
+        }
+        
+        .mecha-part:active {
+            cursor: grabbing;
+            filter: drop-shadow(4px 8px 12px rgba(0,0,0,0.6));
+            transform: scale(1.1); /* Slight enlarge on touch */
+        }
+
+        .mecha-part.locked {
+            cursor: default;
+            filter: drop-shadow(1px 2px 3px rgba(0,0,0,0.8));
+            pointer-events: none;
+            transform: scale(1);
+        }
+
+        .part-target {
+            position: absolute;
+            opacity: 0.3;
+            filter: grayscale(100%) brightness(0.4);
+            pointer-events: none;
+            border: 2px dashed rgba(255,255,255,0.3);
+            border-radius: 10px;
+        }
+        
+        .part-target.active-hint {
+            animation: pulse-border 1.5s infinite;
+        }
+
+        @keyframes pulse-border {
+            0% { border-color: rgba(255, 255, 0, 0.2); background: rgba(255,255,0,0.05); }
+            50% { border-color: rgba(255, 255, 0, 0.8); background: rgba(255,255,0,0.2); }
+            100% { border-color: rgba(255, 255, 0, 0.2); background: rgba(255,255,0,0.05); }
+        }
+
+        @keyframes lock-flash {
+            0% { filter: brightness(1); transform: scale(1); }
+            50% { filter: brightness(2) drop-shadow(0 0 20px cyan); transform: scale(1.1); }
+            100% { filter: brightness(1); transform: scale(1); }
+        }
+
+        .anim-lock {
+            animation: lock-flash 0.5s ease-out forwards;
+        }
+
+        @keyframes mecha-complete-dance {
+            0% { transform: translateY(0) rotate(0); }
+            25% { transform: translateY(-15px) rotate(-3deg); }
+            50% { transform: translateY(0) rotate(3deg); }
+            75% { transform: translateY(-10px) rotate(-1deg); }
+            100% { transform: translateY(0) rotate(0); }
+        }
+
+        .mecha-completed {
+            animation: mecha-complete-dance 1.5s ease-in-out infinite;
+        }
+
+        @keyframes spark {
+            0% { opacity: 1; transform: scale(0) translate(0,0); }
+            50% { opacity: 1; transform: scale(1) translate(var(--tx), var(--ty)); }
+            100% { opacity: 0; transform: scale(0) translate(var(--tx), var(--ty)); }
+        }
+
+        .sparkle {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: yellow;
+            border-radius: 50%;
+            pointer-events: none;
+            box-shadow: 0 0 10px white, 0 0 20px yellow;
+            z-index: 60;
+        }
+
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 50;
+            transition: opacity 0.3s;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        #workspace {
+            flex-grow: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #blueprint-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 250px; /* Slightly smaller for mobile */
+            height: 350px;
+            border: 2px dashed rgba(255,255,255,0.1);
+            border-radius: 20px;
+            background: rgba(0, 20, 40, 0.2);
+            pointer-events: none;
+        }
+
+        /* Adjusted scaling for mobile screens */
+        @media (max-width: 600px) {
+            #blueprint-center {
+                transform: translate(-50%, -50%) scale(0.65); /* ย่อขนาดโครงหุ่นลงอีกให้พอดีจอมือถือ */
+            }
+        }
+
+        .cyber-btn {
+            background: linear-gradient(45deg, #1e3c72, #2a5298);
+            border: 2px solid #4a90e2;
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        
+        .cyber-btn:active {
+            transform: scale(0.95);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+
+        .cyber-btn.disabled {
+            background: #333;
+            border-color: #555;
+            color: #777;
+            pointer-events: none;
+        }
+
+        /* Level Grid in Main Menu */
+        #level-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            /* นำ max-height ออกเพื่อให้ใช้ Flexbox จัดการความสูงแทน */
+            padding: 10px;
+            scrollbar-width: thin;
+        }
+        
+        #level-grid::-webkit-scrollbar {
+            width: 6px;
+        }
+        #level-grid::-webkit-scrollbar-thumb {
+            background: #4a90e2;
+            border-radius: 10px;
+        }
+
+        .level-btn {
+            aspect-ratio: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #2d3748;
+            border: 1px solid #4a5568;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+        .level-btn.unlocked {
+            background: linear-gradient(135deg, #2b6cb0, #2c5282);
+            border-color: #63b3ed;
+            color: white;
+        }
+        .level-btn.completed {
+            background: linear-gradient(135deg, #38a169, #2f855a);
+            border-color: #68d391;
+            color: white;
+        }
+        .level-btn.locked {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Parts tray for mobile - fixed at bottom/top */
+        #parts-tray-bottom, #parts-tray-top {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 100px; /* Area to hold parts */
+            pointer-events: none; /* Let drag pass through */
+        }
+        #parts-tray-bottom { bottom: 20px; }
+        #parts-tray-top { top: 70px; } /* Below HUD */
+
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        
+        <!-- Top HUD -->
+        <div class="ui-panel m-2 p-2 flex justify-between items-center z-10 text-sm md:text-base" id="hud">
+            <div class="flex flex-col md:flex-row items-start md:items-center gap-1 md:gap-4 w-1/3">
+                <div class="font-bold text-yellow-400">ด่าน: <span id="hud-level" class="text-white text-lg">1</span></div>
+                <div id="hud-theme" class="font-bold text-purple-400 text-xs md:text-sm bg-gray-800 px-2 py-1 rounded border border-purple-500">🤖 กันดั้ม</div>
+                <div class="font-bold text-blue-400 hidden md:block">คะแนน: <span id="score" class="text-white">0</span></div>
+            </div>
+            
+            <div class="flex-grow mx-2 md:mx-4 flex flex-col items-center">
+                <div class="font-bold text-red-400 mb-1">เวลา: <span id="timer" class="text-white text-xl">90</span>s</div>
+                <div class="w-full max-w-[200px] bg-gray-700 rounded-full h-2 md:h-3 border border-gray-500">
+                    <div id="progress-bar" class="bg-blue-500 h-1.5 md:h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <div class="flex gap-1 md:gap-2 w-1/3 justify-end">
+                <button id="btn-sound" class="p-2 md:p-3 bg-gray-700 rounded-lg border border-gray-500 hover:bg-gray-600 transition" aria-label="Toggle Sound">
+                    <svg id="icon-sound-on" class="w-5 h-5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5 10v4a2 2 0 002 2h2.586l3.707 3.707A.996.996 0 0014 19V5a.996.996 0 00-1.707-.707L7.586 10H7a2 2 0 00-2 2z"></path></svg>
+                    <svg id="icon-sound-off" class="w-5 h-5 md:w-6 md:h-6 text-red-400 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clip-rule="evenodd"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"></path></svg>
+                </button>
+                <button id="btn-quit" class="p-2 md:p-3 bg-red-800 rounded-lg border border-red-500 hover:bg-red-700 transition text-white font-bold text-xs md:text-base">เมนู</button>
+            </div>
+        </div>
+
+        <!-- Main Workspace -->
+        <div id="workspace">
+            <div id="blueprint-center"></div>
+            <!-- Trays for initial part placement logic -->
+            <div id="parts-tray-top"></div>
+            <div id="parts-tray-bottom"></div>
+            
+            <div id="targets-container"></div>
+            <div id="parts-container"></div>
+            <div id="effects-container" class="absolute top-0 left-0 w-full h-full pointer-events-none z-40"></div>
+        </div>
+
+        <!-- Main Menu Screen -->
+        <div id="screen-menu" class="screen">
+            <h1 class="text-3xl md:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-b from-gray-100 via-blue-300 to-blue-600 mb-1 filter drop-shadow-[0_0_8px_rgba(100,200,255,0.6)] text-center tracking-wider px-2">MECHA WORKSHOP</h1>
+            <h2 class="text-lg md:text-2xl text-blue-200 mb-4 tracking-widest">MOBILE EDITION</h2>
+            
+            <div class="ui-panel p-3 md:p-6 text-center max-w-sm w-[90%] max-h-[85vh] flex flex-col items-center">
+                
+                <!-- ย้ายปุ่มลบข้อมูลมาไว้ด้านบน -->
+                <div class="mb-4 flex gap-4 w-full text-sm">
+                    <button id="btn-reset-data" class="w-full py-2 bg-gray-800 text-red-400 border border-red-900 rounded hover:bg-gray-700">ลบข้อมูล</button>
+                </div>
+
+                <p class="text-gray-300 text-sm mb-2">เลือกด่าน (ปลดล็อกแล้ว <span id="unlocked-count">1</span>/100)</p>
+                <div id="level-grid" class="w-full bg-gray-900 rounded-lg border border-gray-700 flex-grow overflow-y-auto mb-4">
+                    <!-- Levels generated by JS -->
+                </div>
+                
+                <!-- ย้ายปุ่มเล่นต่อไปมาไว้ด้านล่าง -->
+                <button id="btn-play-next" class="cyber-btn w-full py-4 rounded-lg text-xl font-bold shadow-lg shadow-blue-500/50 flex-shrink-0">
+                    เล่นด่านต่อไป (<span id="next-level-num">1</span>)
+                </button>
+            </div>
+            <p class="mt-2 text-xs text-gray-500">แตะแล้วลากเพื่อประกอบหุ่นยนต์</p>
+        </div>
+
+        <!-- Result Screen -->
+        <div id="screen-result" class="screen hidden">
+            <h1 id="res-title" class="text-5xl md:text-6xl font-bold mb-4 text-center px-4"></h1>
+            <div class="ui-panel p-6 text-center max-w-sm w-[90%]">
+                <p id="res-message" class="text-lg md:text-xl mb-6 text-gray-200"></p>
+                
+                <div class="bg-black bg-opacity-60 p-4 rounded-lg mb-6 border border-gray-700">
+                    <div class="flex justify-between mb-2">
+                        <span class="text-gray-400">หมวดหมู่ที่ต่อ:</span>
+                        <span class="font-bold text-purple-400 text-lg" id="res-theme">🤖 กันดั้ม</span>
+                    </div>
+                    <div class="flex justify-between mb-2">
+                        <span class="text-gray-400">ด่านที่:</span>
+                        <span class="font-bold text-white text-lg" id="res-level">1</span>
+                    </div>
+                    <div class="flex justify-between mb-2">
+                        <span class="text-gray-400">คะแนนด่านนี้:</span>
+                        <span class="font-bold text-blue-400 text-lg" id="res-score">0</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">คะแนนรวมสะสม:</span>
+                        <span class="font-bold text-yellow-400 text-xl" id="res-total-score">0</span>
+                    </div>
+                </div>
+
+                <div class="flex gap-4" id="res-btn-group-normal">
+                    <button id="btn-res-menu" class="flex-1 py-3 bg-gray-700 border border-gray-500 rounded-lg text-white font-bold hover:bg-gray-600">เมนู</button>
+                    <button id="btn-res-next" class="flex-2 cyber-btn py-3 px-6 rounded-lg text-lg font-bold w-full">ด่านต่อไป ➔</button>
+                    <button id="btn-res-retry" class="flex-2 cyber-btn py-3 px-6 rounded-lg text-lg font-bold w-full hidden">ลองใหม่ ↻</button>
+                </div>
+                
+                <div class="flex gap-4 hidden" id="res-btn-group-endgame">
+                    <button id="btn-res-keep-99" class="flex-1 py-3 bg-gray-700 border border-gray-500 rounded-lg text-white font-bold hover:bg-gray-600 text-sm md:text-base">ไม่รีเซ็ต (ด่าน 99)</button>
+                    <button id="btn-res-reset-all" class="flex-2 py-3 bg-red-600 border border-red-500 rounded-lg text-white font-bold hover:bg-red-500 text-sm md:text-base">รีเซ็ตเกม</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal ยืนยันการลบข้อมูล (แก้ไขเพิ่มส่วนที่หายไป) -->
+        <div id="modal-confirm-reset" class="screen hidden" style="z-index: 100;">
+            <div class="ui-panel p-6 text-center max-w-sm w-[90%]">
+                <h2 class="text-2xl font-bold text-red-500 mb-4">ยืนยันการลบข้อมูล</h2>
+                <p class="text-gray-300 mb-6">คุณแน่ใจหรือไม่ว่าต้องการลบความคืบหน้าทั้งหมด?<br>การกระทำนี้ไม่สามารถกู้คืนได้</p>
+                <div class="flex gap-4">
+                    <button id="btn-cancel-reset" class="flex-1 py-3 bg-gray-700 border border-gray-500 rounded-lg text-white font-bold hover:bg-gray-600">ยกเลิก</button>
+                    <button id="btn-confirm-reset" class="flex-1 py-3 bg-red-600 border border-red-500 rounded-lg text-white font-bold hover:bg-red-500">ลบข้อมูล</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- SVG Gradients สำหรับให้แสงเงาโลหะสมจริง (เพิ่มใหม่) -->
+        <svg style="width:0;height:0;position:absolute;" aria-hidden="true" focusable="false">
+            <defs id="dynamic-gradients">
+                <!-- Gradients will be injected here by JS -->
+            </defs>
+            <defs>
+                <!-- แสงสะท้อนโลหะแบบโค้ง (Metallic Sheen) -->
+                <linearGradient id="g-metal-curve" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#ffffff" stop-opacity="0.4" />
+                    <stop offset="20%" stop-color="#ffffff" stop-opacity="0.1" />
+                    <stop offset="80%" stop-color="#000000" stop-opacity="0.3" />
+                    <stop offset="100%" stop-color="#000000" stop-opacity="0.7" />
+                </linearGradient>
+                <!-- เงาลึกสำหรับข้อต่อ (Deep Joint Shadow) -->
+                <radialGradient id="g-joint" cx="50%" cy="50%" r="50%">
+                    <stop offset="70%" stop-color="#444" />
+                    <stop offset="100%" stop-color="#111" />
+                </radialGradient>
+            </defs>
+        </svg>
+
+    </div>
+
+    <script>
+        // --- AUDIO SYSTEM ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let soundEnabled = true;
+
+        const Sounds = {
+            playTone: (freq, type, duration, vol=0.1) => {
+                if (!soundEnabled) return;
+                if(audioCtx.state === 'suspended') audioCtx.resume();
+                
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                
+                gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            },
+            click: () => Sounds.playTone(600, 'sine', 0.1, 0.05),
+            grab: () => {
+                if(!soundEnabled) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(500, audioCtx.currentTime + 0.05);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.1);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.1);
+            },
+            lock: () => {
+                if(!soundEnabled) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(900, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.15);
+                setTimeout(() => Sounds.playTone(1500, 'sine', 0.1, 0.1), 30);
+            },
+            error: () => {
+                if(!soundEnabled) return;
+                Sounds.playTone(150, 'sawtooth', 0.2, 0.1);
+                setTimeout(() => Sounds.playTone(100, 'sawtooth', 0.2, 0.1), 100);
+            },
+            success: () => {
+                if(!soundEnabled) return;
+                const notes = [440, 554, 659, 880, 1108]; // A Major arpeggio
+                notes.forEach((freq, i) => {
+                    setTimeout(() => Sounds.playTone(freq, 'square', 0.15, 0.1), i * 100);
+                });
+            },
+            gameover: () => {
+                if(!soundEnabled) return;
+                const notes = [300, 250, 200, 150];
+                notes.forEach((freq, i) => {
+                    setTimeout(() => Sounds.playTone(freq, 'sawtooth', 0.3, 0.15), i * 200);
+                });
+            }
+        };
+
+        // --- PROCEDURAL GENERATION SYSTEM (100 Unique Forms) ---
+        const THEME_DATA = [
+            { id: 'gundam', name: 'หุ่นรบไซไฟ', icon: '🤖' },
+            { id: 'tank', name: 'รถถังหุ้มเกราะ', icon: '🪖' },
+            { id: 'moto', name: 'มอเตอร์ไซค์', icon: '🏍️' },
+            { id: 'doll', name: 'ตุ๊กตาจักรกล', icon: '🧸' }
+        ];
+
+        // อัปเกรดชิ้นส่วนให้มีความสมจริง (Realistic Details)
+        // c.base, c.acc1 เป็นชื่อ Gradient ที่ถูกสร้างแบบสุ่มตามด่าน
+        const Generators = {
+            gundam: (s1, s2, s3, c) => [
+                { id: 'g-torso', name: 'ลำตัว', w: 100+s1, h: 120+s2, tx: 0, ty: 0, 
+                  svg: `<svg viewBox="0 0 120 150">
+                    <!-- เกราะฐานหลัง -->
+                    <polygon points="${10+s1},10 ${110-s1},10 110,60 100,130 ${60-s3},150 20,130 10,60" fill="url(#g-base)" stroke="#111" stroke-width="2"/>
+                    <!-- แสงสะท้อนโลหะ -->
+                    <polygon points="${10+s1},10 ${110-s1},10 110,60 100,130 ${60-s3},150 20,130 10,60" fill="url(#g-metal-curve)" style="mix-blend-mode: overlay;"/>
+                    <!-- เกราะอกด้านหน้า (ยื่นออกมา) -->
+                    <path d="M 20 20 L 100 20 L 90 60 L 60 80 L 30 60 Z" fill="url(#g-acc1)" stroke="#111" stroke-width="2"/>
+                    <path d="M 20 20 L 100 20 L 90 60 L 60 80 L 30 60 Z" fill="url(#g-metal-curve)" style="mix-blend-mode: overlay;"/>
+                    <!-- ช่องระบายอากาศ (Vents) -->
+                    <rect x="35" y="30" width="20" height="4" fill="#111"/><rect x="35" y="38" width="20" height="4" fill="#111"/>
+                    <rect x="65" y="30" width="20" height="4" fill="#111"/><rect x="65" y="38" width="20" height="4" fill="#111"/>
+                    <!-- คอร์แกนกลาง (Glowing Core) -->
+                    <circle cx="${60-s3/2}" cy="100" r="${15+s2}" fill="url(#g-acc2)" stroke="#111" stroke-width="3"/>
+                    <circle cx="${60-s3/2}" cy="100" r="${8+s2}" fill="#fff" opacity="0.8" filter="blur(2px)"/>
+                    <!-- เส้นรอยต่อเกราะ (Panel lines) -->
+                    <path d="M 10 60 L 30 60 M 110 60 L 90 60 M 60 80 L 60 150" stroke="#111" stroke-width="1.5" opacity="0.6"/>
+                  </svg>` },
+                { id: 'g-head', name: 'ศีรษะ', w: 60+s2, h: 70+s3, tx: 0, ty: -90-s2/2, 
+                  svg: `<svg viewBox="0 0 60 70">
+                    <polygon points="10,20 50,20 55,55 30,70 5,55" fill="url(#g-base)" stroke="#111" stroke-width="2"/>
+                    <!-- เสาอากาศ (V-Fin) -->
+                    <polygon points="30,5 ${15-s1},25 ${45+s1},25" fill="url(#g-acc1)" stroke="#111" stroke-width="1.5"/>
+                    <polygon points="30,5 30,25 ${45+s1},25" fill="#fff" opacity="0.3"/>
+                    <!-- หน้ากากและดวงตา -->
+                    <rect x="15" y="35" width="30" height="15" fill="#222" rx="3"/>
+                    <polygon points="20,38 40,38 35,45 25,45" fill="url(#g-acc2)"/>
+                    <polygon points="20,38 40,38 35,45 25,45" fill="#fff" opacity="0.6" filter="blur(1px)"/>
+                    <!-- คาง -->
+                    <polygon points="25,50 35,50 30,65" fill="url(#g-acc1)" stroke="#111"/>
+                  </svg>` },
+                { id: 'g-armL', name: 'แขนซ้าย', w: 50+s3, h: 130+s1, tx: -70-s1/2, ty: 0, 
+                  svg: `<svg viewBox="0 0 50 140">
+                    <!-- เกราะไหล่ -->
+                    <path d="M 50 10 L ${5-s2} 10 C 0 10 0 30 0 40 L 50 30 Z" fill="url(#g-acc1)" stroke="#111" stroke-width="2"/>
+                    <path d="M 50 10 L ${5-s2} 10 C 0 10 0 30 0 40 L 50 30 Z" fill="url(#g-metal-curve)"/>
+                    <!-- ข้อต่อไหล่ -->
+                    <circle cx="35" cy="40" r="12" fill="url(#g-joint)" stroke="#111" stroke-width="2"/>
+                    <!-- ท่อนแขน -->
+                    <rect x="15" y="45" width="${20+s3}" height="${70+s1}" fill="url(#g-base)" rx="5" stroke="#111" stroke-width="2"/>
+                    <rect x="15" y="45" width="${20+s3}" height="${70+s1}" fill="url(#g-metal-curve)" rx="5"/>
+                    <!-- ข้อศอกและเส้นเกราะ -->
+                    <line x1="15" y1="${80+s1/2}" x2="${35+s3}" y2="${80+s1/2}" stroke="#111" stroke-width="3"/>
+                    <circle cx="${25+s3/2}" cy="${80+s1/2}" r="6" fill="url(#g-dtl)" stroke="#111"/>
+                    <rect x="18" y="${115+s1}" width="${14+s3}" height="20" fill="url(#g-dtl)" rx="3" stroke="#111"/>
+                  </svg>` },
+                { id: 'g-armR', name: 'แขนขวา', w: 50+s3, h: 130+s1, tx: 70+s1/2, ty: 0, 
+                  svg: `<svg viewBox="0 0 50 140">
+                    <path d="M 0 10 L ${45+s2} 10 C 50 10 50 30 50 40 L 0 30 Z" fill="url(#g-acc1)" stroke="#111" stroke-width="2"/>
+                    <path d="M 0 10 L ${45+s2} 10 C 50 10 50 30 50 40 L 0 30 Z" fill="url(#g-metal-curve)"/>
+                    <circle cx="15" cy="40" r="12" fill="url(#g-joint)" stroke="#111" stroke-width="2"/>
+                    <rect x="${15-s3}" y="45" width="${20+s3}" height="${70+s1}" fill="url(#g-base)" rx="5" stroke="#111" stroke-width="2"/>
+                    <rect x="${15-s3}" y="45" width="${20+s3}" height="${70+s1}" fill="url(#g-metal-curve)" rx="5"/>
+                    <line x1="${15-s3}" y1="${80+s1/2}" x2="35" y2="${80+s1/2}" stroke="#111" stroke-width="3"/>
+                    <circle cx="${25-s3/2}" cy="${80+s1/2}" r="6" fill="url(#g-dtl)" stroke="#111"/>
+                    <rect x="${18-s3}" y="${115+s1}" width="${14+s3}" height="20" fill="url(#g-dtl)" rx="3" stroke="#111"/>
+                  </svg>` },
+                { id: 'g-legL', name: 'ขาซ้าย', w: 55+s1, h: 140+s2, tx: -30-s3/2, ty: 120+s2/2, 
+                  svg: `<svg viewBox="0 0 55 160">
+                    <!-- ต้นขา -->
+                    <path d="M 20 0 L 50 0 L ${45-s2} 60 L 15 60 Z" fill="url(#g-base)" stroke="#111" stroke-width="2"/>
+                    <path d="M 20 0 L 50 0 L ${45-s2} 60 L 15 60 Z" fill="url(#g-metal-curve)"/>
+                    <!-- ข้อเข่า -->
+                    <circle cx="35" cy="70" r="12" fill="url(#g-joint)" stroke="#111" stroke-width="2"/>
+                    <polygon points="25,60 45,60 40,80 30,80" fill="url(#g-acc2)" stroke="#111"/>
+                    <!-- น่อง -->
+                    <path d="M 15 80 L 45 80 L 55 130 L ${5-s1} 130 Z" fill="url(#g-base)" stroke="#111" stroke-width="2"/>
+                    <path d="M 15 80 L 45 80 L 55 130 L ${5-s1} 130 Z" fill="url(#g-metal-curve)"/>
+                    <!-- เส้นเกราะน่อง -->
+                    <path d="M 15 80 L 30 130 M 45 80 L 30 130" stroke="#111" stroke-width="1" opacity="0.5"/>
+                    <!-- เท้า -->
+                    <polygon points="25,130 45,130 55,160 0,160" fill="url(#g-acc1)" stroke="#111" stroke-width="2"/>
+                    <polygon points="25,130 45,130 55,160 0,160" fill="url(#g-metal-curve)"/>
+                  </svg>` },
+                { id: 'g-legR', name: 'ขาขวา', w: 55+s1, h: 140+s2, tx: 30+s3/2, ty: 120+s2/2, 
+                  svg: `<svg viewBox="0 0 55 160">
+                    <path d="M 5 0 L 35 0 L 40 60 L ${10+s2} 60 Z" fill="url(#g-base)" stroke="#111" stroke-width="2"/>
+                    <path d="M 5 0 L 35 0 L 40 60 L ${10+s2} 60 Z" fill="url(#g-metal-curve)"/>
+                    <circle cx="20" cy="70" r="12" fill="url(#g-joint)" stroke="#111" stroke-width="2"/>
+                    <polygon points="10,60 30,60 25,80 15,80" fill="url(#g-acc2)" stroke="#111"/>
+                    <path d="M 10 80 L 40 80 L ${50+s1} 130 L 0 130 Z" fill="url(#g-base)" stroke="#111" stroke-width="2"/>
+                    <path d="M 10 80 L 40 80 L ${50+s1} 130 L 0 130 Z" fill="url(#g-metal-curve)"/>
+                    <path d="M 10 80 L 25 130 M 40 80 L 25 130" stroke="#111" stroke-width="1" opacity="0.5"/>
+                    <polygon points="10,130 30,130 55,160 0,160" fill="url(#g-acc1)" stroke="#111" stroke-width="2"/>
+                    <polygon points="10,130 30,130 55,160 0,160" fill="url(#g-metal-curve)"/>
+                  </svg>` },
+                { id: 'g-wpn', name: 'บีมไรเฟิล', w: 90+s1*2, h: 40+s3, tx: 100+s1, ty: 30, 
+                  svg: `<svg viewBox="0 0 110 40">
+                    <!-- ลำกล้องปืน -->
+                    <rect x="30" y="10" width="${60+s1*2}" height="${8+s3/2}" fill="url(#g-dtl)" stroke="#111" stroke-width="2"/>
+                    <!-- เซนเซอร์ -->
+                    <circle cx="${60+s1}" cy="5" r="5" fill="url(#g-acc2)" stroke="#111"/>
+                    <!-- ตัวปืน -->
+                    <polygon points="0,5 ${30+s2},5 ${30+s2},25 10,25" fill="url(#g-base)" stroke="#111" stroke-width="2"/>
+                    <!-- แม็กกาซีนและด้ามจับ -->
+                    <rect x="15" y="25" width="10" height="15" fill="url(#g-dtl)" stroke="#111"/>
+                    <path d="M 0 5 L ${30+s2} 5 L ${30+s2} 25 L 10 25 Z" fill="url(#g-metal-curve)"/>
+                    <line x1="35" y1="14" x2="${85+s1*2}" y2="14" stroke="#111" opacity="0.5" stroke-width="2"/>
+                  </svg>` },
+                { id: 'g-shld', name: 'โล่ป้องกัน', w: 60+s2, h: 90+s1, tx: -90-s2, ty: 20, 
+                  svg: `<svg viewBox="0 0 60 90">
+                    <!-- โครงโล่ -->
+                    <polygon points="10,0 50,0 60,30 30,${85+s1} 0,30" fill="url(#g-acc2)" stroke="#111" stroke-width="3"/>
+                    <polygon points="10,0 50,0 60,30 30,${85+s1} 0,30" fill="url(#g-metal-curve)"/>
+                    <!-- เกราะซ้อนชั้นใน -->
+                    <polygon points="15,10 45,10 50,30 30,75 10,30" fill="url(#g-base)" stroke="#111" stroke-width="1.5"/>
+                    <circle cx="30" cy="20" r="5" fill="url(#g-acc1)" stroke="#111"/>
+                    <line x1="30" y1="30" x2="30" y2="70" stroke="#111" stroke-width="2" opacity="0.5"/>
+                  </svg>` }
+            ],
+            tank: (s1, s2, s3, c) => [
+                { id: 't-hull', name: 'ตัวถังหุ้มเกราะ', w: 140+s1*2, h: 60+s3, tx: 0, ty: 10, 
+                  svg: `<svg viewBox="0 0 180 80">
+                    <polygon points="${10+s2},0 ${160-s1},0 170,40 10,40" fill="url(#g-base)" stroke="#111" stroke-width="3"/>
+                    <polygon points="${10+s2},0 ${160-s1},0 170,40 10,40" fill="url(#g-metal-curve)"/>
+                    <!-- เกราะเสริมด้านหน้า -->
+                    <polygon points="10,40 170,40 150,60 30,60" fill="url(#g-dtl)" stroke="#111" stroke-width="2"/>
+                    <!-- รายละเอียดฝาปิดและท่อ -->
+                    <rect x="30" y="10" width="40" height="15" fill="url(#g-acc1)" stroke="#111" rx="2"/>
+                    <circle cx="140" cy="20" r="12" fill="url(#g-joint)" stroke="#111"/>
+                    <!-- หมุดเกราะ (Rivets) -->
+                    <circle cx="25" cy="30" r="2" fill="#222"/><circle cx="45" cy="30" r="2" fill="#222"/>
+                    <circle cx="65" cy="30" r="2" fill="#222"/><circle cx="85" cy="30" r="2" fill="#222"/>
+                    <circle cx="105" cy="30" r="2" fill="#222"/><circle cx="125" cy="30" r="2" fill="#222"/>
+                  </svg>` },
+                { id: 't-turret', name: 'ป้อมปืน', w: 90+s2*2, h: 50+s1, tx: -15, ty: -35-s3/2, 
+                  svg: `<svg viewBox="0 0 120 70">
+                    <path d="M10,50 C20,10 ${60+s1},${-20+s2} 110,50 Z" fill="url(#g-acc1)" stroke="#111" stroke-width="3"/>
+                    <path d="M10,50 C20,10 ${60+s1},${-20+s2} 110,50 Z" fill="url(#g-metal-curve)"/>
+                    <!-- ฝาแฮทช์ (Hatch) -->
+                    <ellipse cx="60" cy="30" rx="${12+s3}" ry="6" fill="url(#g-joint)" stroke="#111" stroke-width="2"/>
+                    <rect x="55" y="25" width="10" height="4" fill="url(#g-dtl)"/>
+                    <!-- กล้องเล็ง (Optics) -->
+                    <rect x="90" y="35" width="15" height="10" fill="url(#g-acc2)" stroke="#111"/>
+                  </svg>` },
+                { id: 't-gun', name: 'ปืนใหญ่หลัก', w: 120+s3*3, h: 20+s2/2, tx: 80+s3, ty: -30, 
+                  svg: `<svg viewBox="0 0 160 30">
+                    <!-- กระบอกปืน -->
+                    <rect x="0" y="5" width="${100+s3*3}" height="${12+s2/2}" fill="url(#g-dtl)" stroke="#111" stroke-width="2"/>
+                    <rect x="0" y="5" width="${100+s3*3}" height="${12+s2/2}" fill="url(#g-metal-curve)"/>
+                    <!-- ปลอกลดแสง (Muzzle brake) -->
+                    <rect x="${80+s3*3}" y="2" width="25" height="${18+s2/2}" fill="url(#g-acc2)" stroke="#111" stroke-width="2" rx="3"/>
+                    <line x1="${85+s3*3}" y1="2" x2="${85+s3*3}" y2="${20+s2/2}" stroke="#111" stroke-width="2"/>
+                    <line x1="${95+s3*3}" y1="2" x2="${95+s3*3}" y2="${20+s2/2}" stroke="#111" stroke-width="2"/>
+                  </svg>` },
+                { id: 't-trkB', name: 'ตีนตะขาบซ้าย', w: 160+s1*2, h: 40+s2, tx: -10, ty: 45, 
+                  svg: `<svg viewBox="0 0 200 60">
+                    <!-- สายพาน -->
+                    <rect x="0" y="0" width="${150+s1*2}" height="${30+s2}" rx="15" fill="url(#g-joint)" stroke="#111" stroke-width="4"/>
+                    <!-- ลายสายพาน (Treads) -->
+                    <path d="M 15 0 L 15 ${30+s2} M 35 0 L 35 ${30+s2} M 55 0 L 55 ${30+s2} M 75 0 L 75 ${30+s2} M 95 0 L 95 ${30+s2} M 115 0 L 115 ${30+s2} M 135 0 L 135 ${30+s2}" stroke="#111" stroke-width="3" opacity="0.6"/>
+                    <!-- ล้อกด (Road wheels) -->
+                    <circle cx="25" cy="${15+s2/2}" r="10" fill="url(#g-dtl)" stroke="#111" stroke-width="2"/>
+                    <circle cx="75" cy="${15+s2/2}" r="10" fill="url(#g-dtl)" stroke="#111" stroke-width="2"/>
+                    <circle cx="125" cy="${15+s2/2}" r="10" fill="url(#g-dtl)" stroke="#111" stroke-width="2"/>
+                  </svg>` },
+                { id: 't-trkF', name: 'ตีนตะขาบขวา', w: 170+s1*2, h: 45+s2, tx: 10, ty: 55, 
+                  svg: `<svg viewBox="0 0 210 60">
+                    <rect x="0" y="0" width="${160+s1*2}" height="${35+s2}" rx="17" fill="#2a2a2a" stroke="#000" stroke-width="5"/>
+                    <path d="M 20 0 L 20 ${35+s2} M 45 0 L 45 ${35+s2} M 70 0 L 70 ${35+s2} M 95 0 L 95 ${35+s2} M 120 0 L 120 ${35+s2} M 145 0 L 145 ${35+s2}" stroke="#111" stroke-width="4" opacity="0.8"/>
+                    <circle cx="30" cy="${17+s2/2}" r="12" fill="url(#g-acc2)" stroke="#111" stroke-width="2"/>
+                    <circle cx="30" cy="${17+s2/2}" r="4" fill="#111"/>
+                    <circle cx="80" cy="${17+s2/2}" r="12" fill="url(#g-acc2)" stroke="#111" stroke-width="2"/>
+                    <circle cx="80" cy="${17+s2/2}" r="4" fill="#111"/>
+                    <circle cx="${130+s1}" cy="${17+s2/2}" r="12" fill="url(#g-acc2)" stroke="#111" stroke-width="2"/>
+                    <circle cx="${130+s1}" cy="${17+s2/2}" r="4" fill="#111"/>
+                  </svg>` },
+                { id: 't-radar', name: 'จานเรดาร์', w: 40+s3, h: 50+s1, tx: -40-s2, ty: -70-s1/2, 
+                  svg: `<svg viewBox="0 0 60 70">
+                    <line x1="30" y1="60" x2="30" y2="20" stroke="#111" stroke-width="6"/>
+                    <line x1="30" y1="60" x2="30" y2="20" stroke="url(#g-dtl)" stroke-width="4"/>
+                    <!-- จาน -->
+                    <ellipse cx="30" cy="15" rx="${20+s3}" ry="${8+s1}" fill="url(#g-acc2)" stroke="#111" stroke-width="2"/>
+                    <path d="M ${10-s3} 15 Q 30 25 ${50+s3} 15" fill="none" stroke="#111" stroke-width="1.5" opacity="0.6"/>
+                    <circle cx="30" cy="15" r="3" fill="red"/>
+                  </svg>` },
+                { id: 't-eng', name: 'เครื่องยนต์', w: 50+s2, h: 40+s3, tx: -75-s1, ty: 10, 
+                  svg: `<svg viewBox="0 0 70 60">
+                    <rect x="10" y="10" width="${40+s2}" height="${30+s3}" fill="url(#g-joint)" stroke="#111" stroke-width="2" rx="4"/>
+                    <!-- ท่อไอเสีย (Exhaust) -->
+                    <path d="M 15 10 C 15 -10 5 -10 0 0" fill="none" stroke="url(#g-dtl)" stroke-width="6"/>
+                    <path d="M 45 10 C 45 -10 55 -10 60 0" fill="none" stroke="url(#g-dtl)" stroke-width="6"/>
+                    <!-- ตะแกรงเครื่อง -->
+                    <line x1="15" y1="20" x2="${45+s2}" y2="20" stroke="#111" stroke-width="3"/>
+                    <line x1="15" y1="30" x2="${45+s2}" y2="30" stroke="#111" stroke-width="3"/>
+                  </svg>` },
+                { id: 't-armr', name: 'เกราะปฏิกิริยา', w: 80+s1, h: 30+s2, tx: 30, ty: 25, 
+                  svg: `<svg viewBox="0 0 100 50">
+                    <polygon points="0,0 ${70+s1},0 ${80+s1},30 10,30" fill="url(#g-base)" stroke="#111" stroke-width="2"/>
+                    <polygon points="0,0 ${70+s1},0 ${80+s1},30 10,30" fill="url(#g-metal-curve)"/>
+                    <!-- ลวดลายเกราะ ERA (Explosive Reactive Armor) -->
+                    <rect x="15" y="5" width="20" height="15" fill="url(#g-acc1)" stroke="#111" transform="skewX(15)"/>
+                    <rect x="40" y="5" width="20" height="15" fill="url(#g-acc1)" stroke="#111" transform="skewX(15)"/>
+                  </svg>` }
+            ],
+            moto: (s1, s2, s3, c) => [
+                { id: 'm-chas', name: 'โครงรถ', w: 130+s1, h: 60+s2, tx: 0, ty: 10, 
+                  svg: `<svg viewBox="0 0 160 80">
+                    <!-- โครงถัก (Trellis Frame) -->
+                    <path d="M20,40 L60,10 L${120+s1},20 L100,60 Z" fill="none" stroke="url(#g-dtl)" stroke-width="6" stroke-linejoin="round"/>
+                    <path d="M20,40 L100,20 M60,10 L100,60" fill="none" stroke="url(#g-dtl)" stroke-width="4"/>
+                    <!-- แฟริ่งข้าง -->
+                    <path d="M60,10 C 80,30 90,50 30,60 Z" fill="url(#g-base)" stroke="#111" stroke-width="2"/>
+                    <path d="M60,10 C 80,30 90,50 30,60 Z" fill="url(#g-metal-curve)"/>
+                    <circle cx="50" cy="30" r="4" fill="#111"/>
+                  </svg>` },
+                { id: 'm-whlR', name: 'ล้อหลัง', w: 80+s3, h: 80+s3, tx: -60-s1, ty: 40, 
+                  svg: `<svg viewBox="0 0 100 100">
+                    <!-- ยาง -->
+                    <circle cx="50" cy="50" r="${35+s3/2}" fill="#1a1a1a" stroke="#000" stroke-width="6"/>
+                    <!-- ดอกยาง -->
+                    <circle cx="50" cy="50" r="${32+s3/2}" fill="none" stroke="#2a2a2a" stroke-width="3" stroke-dasharray="4,6"/>
+                    <!-- ขอบล้อ (Rim) -->
+                    <circle cx="50" cy="50" r="${25+s3/2}" fill="none" stroke="url(#g-acc2)" stroke-width="5"/>
+                    <!-- ซี่ล้อ (Mags) -->
+                    <path d="M 50 25 L 50 75 M 25 50 L 75 50 M 32 32 L 68 68 M 32 68 L 68 32" stroke="url(#g-dtl)" stroke-width="4"/>
+                    <!-- แกนล้อ -->
+                    <circle cx="50" cy="50" r="8" fill="url(#g-joint)" stroke="#111" stroke-width="2"/>
+                  </svg>` },
+                { id: 'm-whlF', name: 'ล้อหน้า', w: 80+s3, h: 80+s3, tx: 70+s2, ty: 40, 
+                  svg: `<svg viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="${35+s3/2}" fill="#1a1a1a" stroke="#000" stroke-width="6"/>
+                    <circle cx="50" cy="50" r="${32+s3/2}" fill="none" stroke="#2a2a2a" stroke-width="3" stroke-dasharray="4,6"/>
+                    <circle cx="50" cy="50" r="${20+s3/2}" fill="none" stroke="url(#g-acc1)" stroke-width="5"/>
+                    <path d="M 50 30 L 50 70 M 30 50 L 70 50 M 35 35 L 65 65 M 35 65 L 65 35" stroke="url(#g-dtl)" stroke-width="3"/>
+                    <!-- ดิสก์เบรก -->
+                    <circle cx="50" cy="50" r="15" fill="none" stroke="url(#g-metal-curve)" stroke-width="4" stroke-dasharray="2,2"/>
+                    <circle cx="50" cy="50" r="6" fill="url(#g-joint)" stroke="#111" stroke-width="2"/>
+                  </svg>` },
+                { id: 'm-eng', name: 'เครื่องยนต์', w: 50+s1, h: 50+s2, tx: -10, ty: 35, 
+                  svg: `<svg viewBox="0 0 70 70">
+                    <rect x="10" y="10" width="${40+s1}" height="${40+s2}" rx="8" fill="url(#g-acc2)" stroke="#111" stroke-width="2"/>
+                    <!-- ครีบระบายความร้อน (Cooling fins) -->
+                    <line x1="10" y1="20" x2="${50+s1}" y2="20" stroke="#111" stroke-width="2"/>
+                    <line x1="10" y1="28" x2="${50+s1}" y2="28" stroke="#111" stroke-width="2"/>
+                    <line x1="10" y1="36" x2="${50+s1}" y2="36" stroke="#111" stroke-width="2"/>
+                    <!-- ฝาครอบแคร้ง -->
+                    <circle cx="${30+s1/2}" cy="${30+s2/2}" r="12" fill="url(#g-joint)" stroke="#111" stroke-width="2"/>
+                    <circle cx="${30+s1/2}" cy="${30+s2/2}" r="4" fill="url(#g-dtl)"/>
+                  </svg>` },
+                { id: 'm-exh', name: 'ท่อไอเสีย', w: 100+s2*2, h: 20+s3/2, tx: -40-s1, ty: 60, 
+                  svg: `<svg viewBox="0 0 140 40">
+                    <!-- คอท่อ (Header) -->
+                    <path d="M${90+s2*2},15 Q50,40 10,20" fill="none" stroke="url(#g-metal-curve)" stroke-width="${8+s3/4}" stroke-linecap="round"/>
+                    <path d="M${90+s2*2},15 Q50,40 10,20" fill="none" stroke="#111" stroke-width="${8+s3/4}" opacity="0.3" stroke-linecap="round"/>
+                    <!-- ปลายท่อ (Muffler) -->
+                    <rect x="5" y="10" width="45" height="${14+s3/4}" rx="7" fill="url(#g-acc1)" stroke="#111" stroke-width="2"/>
+                    <rect x="5" y="10" width="45" height="${14+s3/4}" rx="7" fill="url(#g-metal-curve)"/>
+                    <!-- รูท่อ -->
+                    <ellipse cx="8" cy="${17+s3/8}" rx="3" ry="5" fill="#111"/>
+                  </svg>` },
+                { id: 'm-seat', name: 'เบาะที่นั่ง', w: 60+s1, h: 25+s2, tx: -30-s3, ty: -15, 
+                  svg: `<svg viewBox="0 0 80 40">
+                    <path d="M0,20 C 15,5 30,0 ${50+s1},10 C ${60+s1},20 ${60+s1},30 10,30 Z" fill="#222" stroke="#111" stroke-width="2"/>
+                    <path d="M0,20 C 15,5 30,0 ${50+s1},10 C ${60+s1},20 ${60+s1},30 10,30 Z" fill="url(#g-metal-curve)" opacity="0.2"/>
+                    <!-- ลายตะเข็บเบาะ -->
+                    <path d="M 10 25 Q 30 15 ${45+s1} 15" fill="none" stroke="#444" stroke-width="1.5" stroke-dasharray="2,2"/>
+                  </svg>` },
+                { id: 'm-bar', name: 'โช้คอัพและแฮนด์', w: 30+s3, h: 40+s1, tx: 40+s2, ty: -25, 
+                  svg: `<svg viewBox="0 0 50 60">
+                    <!-- กระบอกโช้ค -->
+                    <line x1="15" y1="50" x2="${30+s3/2}" y2="15" stroke="url(#g-metal-curve)" stroke-width="6"/>
+                    <line x1="15" y1="50" x2="${30+s3/2}" y2="15" stroke="#111" stroke-width="6" opacity="0.2"/>
+                    <!-- แกนโช้คสีทอง/เงิน -->
+                    <line x1="10" y1="60" x2="15" y2="50" stroke="url(#g-acc2)" stroke-width="4"/>
+                    <!-- แฮนด์บาร์ -->
+                    <circle cx="${30+s3/2}" cy="15" r="7" fill="url(#g-joint)" stroke="#111" stroke-width="2"/>
+                    <line x1="${30+s3/2}" y1="15" x2="${45+s3/2}" y2="5" stroke="#222" stroke-width="4" stroke-linecap="round"/>
+                  </svg>` },
+                { id: 'm-fair', name: 'แฟริ่งหน้า', w: 60+s2, h: 70+s3, tx: 60+s1, ty: -5, 
+                  svg: `<svg viewBox="0 0 80 90">
+                    <!-- รูปทรงแอโรไดนามิก -->
+                    <path d="M 10 0 C 40 5 ${50+s2} 20 ${60+s2} 70 L 10 60 C 5 40 5 20 10 0 Z" fill="url(#g-base)" stroke="#111" stroke-width="2"/>
+                    <path d="M 10 0 C 40 5 ${50+s2} 20 ${60+s2} 70 L 10 60 C 5 40 5 20 10 0 Z" fill="url(#g-metal-curve)"/>
+                    <!-- ลวดลายสีพาดทับ -->
+                    <path d="M 20 10 L ${40+s2} 25 L 30 50 Z" fill="url(#g-acc1)"/>
+                    <!-- ไฟหน้า (Headlight) -->
+                    <polygon points="50,30 65,45 55,60 40,40" fill="url(#g-acc2)" stroke="#111"/>
+                    <polygon points="50,30 65,45 55,60 40,40" fill="#fff" opacity="0.7" filter="blur(1px)"/>
+                  </svg>` }
+            ],
+            doll: (s1, s2, s3, c) => [
+                { id: 'd-body', name: 'ชุดกระโปรงกล', w: 80+s1, h: 90+s2, tx: 0, ty: 10, 
+                  svg: `<svg viewBox="0 0 100 110">
+                    <!-- ทรงกระโปรง (Bell shape) -->
+                    <path d="M30,10 L70,10 C 80,40 ${90+s1},${80+s2} ${90+s1},${80+s2} L${10-s1},${80+s2} C ${10-s1},${80+s2} 20,40 30,10 Z" fill="url(#g-base)" stroke="#111" stroke-width="2"/>
+                    <path d="M30,10 L70,10 C 80,40 ${90+s1},${80+s2} ${90+s1},${80+s2} L${10-s1},${80+s2} C ${10-s1},${80+s2} 20,40 30,10 Z" fill="url(#g-metal-curve)" opacity="0.5"/>
+                    <!-- ผ้ากันเปื้อนโลหะ / เกราะอก -->
+                    <path d="M40,10 L60,10 L70,40 C 50,50 50,50 30,40 Z" fill="url(#g-acc1)" stroke="#111" stroke-width="2"/>
+                    <!-- รอยจีบกระโปรง (Folds) -->
+                    <path d="M 30 40 Q 30 70 ${20-s1/2} ${80+s2} M 50 45 Q 50 70 50 ${80+s2} M 70 40 Q 70 70 ${80+s1/2} ${80+s2}" fill="none" stroke="#111" stroke-width="1.5" opacity="0.4"/>
+                    <!-- หัวใจจักรกลกลางอก -->
+                    <circle cx="50" cy="25" r="6" fill="url(#g-acc2)" stroke="#111"/>
+                  </svg>` },
+                { id: 'd-head', name: 'ศีรษะแอนดรอยด์', w: 70+s2, h: 70+s2, tx: 0, ty: -60-s3/2, 
+                  svg: `<svg viewBox="0 0 90 90">
+                    <!-- หน้าตุ๊กตา -->
+                    <circle cx="45" cy="45" r="${30+s2/2}" fill="#ffdfc4" stroke="#111" stroke-width="2"/>
+                    <circle cx="45" cy="45" r="${30+s2/2}" fill="url(#g-metal-curve)" opacity="0.1"/> <!-- ให้ดูเป็นเซรามิก/พลาสติกเงา -->
+                    <!-- รอยต่อกรามแอนดรอยด์ -->
+                    <path d="M 15 45 C 15 65 45 75 45 75 C 45 75 75 65 75 45" fill="none" stroke="#c9a793" stroke-width="2"/>
+                    <!-- ดวงตา (Glowing eyes) -->
+                    <circle cx="${30+s2/4}" cy="45" r="5" fill="#111"/><circle cx="${30+s2/4}" cy="45" r="2" fill="url(#g-acc2)"/>
+                    <circle cx="${60-s2/4}" cy="45" r="5" fill="#111"/><circle cx="${60-s2/4}" cy="45" r="2" fill="url(#g-acc2)"/>
+                    <!-- ปาก -->
+                    <path d="M40,60 Q45,63 50,60" fill="none" stroke="#a37666" stroke-width="2"/>
+                  </svg>` },
+                { id: 'd-hair', name: 'ทรงผมสายไฟ', w: 100+s3, h: 80+s1, tx: 0, ty: -75-s2/2, 
+                  svg: `<svg viewBox="0 0 120 100">
+                    <!-- ผมหน้าม้าและผมทรงบ๊อบ -->
+                    <path d="M15,80 C 15,-20 105,-20 105,80 C 70,20 50,20 15,80 Z" fill="url(#g-acc2)" stroke="#111" stroke-width="2"/>
+                    <!-- เส้นผม (Hair strands / Wires) -->
+                    <path d="M 30 10 C 30 50 15 80 15 80 M 60 5 C 60 40 45 60 45 60 M 90 10 C 90 50 105 80 105 80" fill="none" stroke="#111" stroke-width="1.5" opacity="0.5"/>
+                    <!-- โบว์จักรกล (Mechanical Ribbons) -->
+                    <circle cx="25" cy="60" r="${10+s1/2}" fill="url(#g-acc1)" stroke="#111" stroke-width="2"/>
+                    <circle cx="25" cy="60" r="${4+s1/2}" fill="url(#g-dtl)"/>
+                    <circle cx="95" cy="60" r="${10+s1/2}" fill="url(#g-acc1)" stroke="#111" stroke-width="2"/>
+                    <circle cx="95" cy="60" r="${4+s1/2}" fill="url(#g-dtl)"/>
+                  </svg>` },
+                { id: 'd-armL', name: 'แขนซ้าย', w: 30+s1, h: 60+s2, tx: -50-s1/2, ty: 20, 
+                  svg: `<svg viewBox="0 0 50 80">
+                    <!-- ข้อต่อไหล่แบบ Ball Joint -->
+                    <circle cx="20" cy="15" r="10" fill="url(#g-joint)" stroke="#111" stroke-width="2"/>
+                    <!-- ท่อนแขนเซรามิก -->
+                    <rect x="12" y="15" width="${16+s1/2}" height="${40+s2}" rx="8" fill="#ffdfc4" stroke="#111" stroke-width="2"/>
+                    <!-- ปลอกแขนเกราะ -->
+                    <rect x="10" y="30" width="${20+s1/2}" height="20" fill="url(#g-base)" stroke="#111" rx="2"/>
+                    <!-- รอยต่อข้อมือ -->
+                    <line x1="12" y1="${50+s2}" x2="${28+s1/2}" y2="${50+s2}" stroke="#a37666" stroke-width="2"/>
+                  </svg>` },
+                { id: 'd-armR', name: 'แขนขวา', w: 30+s1, h: 60+s2, tx: 50+s1/2, ty: 20, 
+                  svg: `<svg viewBox="0 0 50 80">
+                    <circle cx="20" cy="15" r="10" fill="url(#g-joint)" stroke="#111" stroke-width="2"/>
+                    <rect x="12" y="15" width="${16+s1/2}" height="${40+s2}" rx="8" fill="#ffdfc4" stroke="#111" stroke-width="2"/>
+                    <rect x="10" y="30" width="${20+s1/2}" height="20" fill="url(#g-base)" stroke="#111" rx="2"/>
+                    <line x1="12" y1="${50+s2}" x2="${28+s1/2}" y2="${50+s2}" stroke="#a37666" stroke-width="2"/>
+                  </svg>` },
+                { id: 'd-legL', name: 'ขาซ้าย', w: 35+s2, h: 70+s3, tx: -20-s2/2, ty: 85+s1/2, 
+                  svg: `<svg viewBox="0 0 55 90">
+                    <!-- ข้อต่อสะโพก -->
+                    <circle cx="${22+s2/4}" cy="10" r="10" fill="url(#g-joint)" stroke="#111" stroke-width="2"/>
+                    <!-- ท่อนขา -->
+                    <rect x="15" y="10" width="${15+s2/2}" height="${50+s3}" rx="7" fill="#ffdfc4" stroke="#111" stroke-width="2"/>
+                    <!-- ถุงเท้า/รองเท้าเกราะ -->
+                    <path d="M 12 ${40+s3} L ${33+s2/2} ${40+s3} L ${38+s2/2} ${70+s3} L 7 ${70+s3} Z" fill="url(#g-acc1)" stroke="#111" stroke-width="2"/>
+                    <!-- เส้นรอยต่อรองเท้า -->
+                    <line x1="15" y1="${50+s3}" x2="${30+s2/2}" y2="${50+s3}" stroke="#111" opacity="0.5"/>
+                  </svg>` },
+                { id: 'd-legR', name: 'ขาขวา', w: 35+s2, h: 70+s3, tx: 20+s2/2, ty: 85+s1/2, 
+                  svg: `<svg viewBox="0 0 55 90">
+                    <circle cx="${22+s2/4}" cy="10" r="10" fill="url(#g-joint)" stroke="#111" stroke-width="2"/>
+                    <rect x="15" y="10" width="${15+s2/2}" height="${50+s3}" rx="7" fill="#ffdfc4" stroke="#111" stroke-width="2"/>
+                    <path d="M 12 ${40+s3} L ${33+s2/2} ${40+s3} L ${38+s2/2} ${70+s3} L 7 ${70+s3} Z" fill="url(#g-acc1)" stroke="#111" stroke-width="2"/>
+                    <line x1="15" y1="${50+s3}" x2="${30+s2/2}" y2="${50+s3}" stroke="#111" opacity="0.5"/>
+                  </svg>` },
+                { id: 'd-prop', name: 'ตุ๊กตาหมีระเบิด', w: 50+s3, h: 50+s3, tx: 45+s1, ty: 40+s2, 
+                  svg: `<svg viewBox="0 0 70 70">
+                    <!-- ตัวหมี -->
+                    <circle cx="35" cy="45" r="${15+s3/3}" fill="url(#g-dtl)" stroke="#111" stroke-width="2"/>
+                    <!-- หัวหมี -->
+                    <circle cx="35" cy="22" r="${13+s3/4}" fill="url(#g-dtl)" stroke="#111" stroke-width="2"/>
+                    <!-- หู -->
+                    <circle cx="22" cy="12" r="6" fill="url(#g-dtl)" stroke="#111" stroke-width="2"/>
+                    <circle cx="48" cy="12" r="6" fill="url(#g-dtl)" stroke="#111" stroke-width="2"/>
+                    <!-- ตากากบาท (Dead eyes) -->
+                    <line x1="28" y1="18" x2="34" y2="24" stroke="#111" stroke-width="2"/><line x1="34" y1="18" x2="28" y2="24" stroke="#111" stroke-width="2"/>
+                    <line x1="36" y1="18" x2="42" y2="24" stroke="#111" stroke-width="2"/><line x1="42" y1="18" x2="36" y2="24" stroke="#111" stroke-width="2"/>
+                    <!-- ชนวนระเบิดที่หลัง -->
+                    <rect x="33" y="2" width="4" height="8" fill="#f00"/>
+                  </svg>` }
+            ]
+        };
+
+        const TOTAL_LEVELS = 100;
+        let gameState = {
+            currentLevel: 1,
+            maxUnlockedLevel: 1,
+            totalScore: 0,
+            
+            // Current run
+            isPlaying: false,
+            score: 0,
+            timeLeft: 0,
+            partsPlaced: 0,
+            activePartsConfig: [],
+            timerInterval: null
+        };
+
+        // Load data
+        function loadData() {
+            const saved = localStorage.getItem('mechaSaveData');
+            if(saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    gameState.maxUnlockedLevel = data.maxUnlockedLevel || 1;
+                    gameState.totalScore = data.totalScore || 0;
+                } catch(e) {}
+            }
+            // Fallback limits
+            if(gameState.maxUnlockedLevel > TOTAL_LEVELS) gameState.maxUnlockedLevel = TOTAL_LEVELS;
+        }
+
+        function saveData() {
+            localStorage.setItem('mechaSaveData', JSON.stringify({
+                maxUnlockedLevel: gameState.maxUnlockedLevel,
+                totalScore: gameState.totalScore
+            }));
+        }
+
+        // DOM Elements setup
+        const DOM = {
+            menuScreen: document.getElementById('screen-menu'),
+            resScreen: document.getElementById('screen-result'),
+            workspace: document.getElementById('workspace'),
+            targetsContainer: document.getElementById('targets-container'),
+            partsContainer: document.getElementById('parts-container'),
+            effectsContainer: document.getElementById('effects-container'),
+            
+            levelGrid: document.getElementById('level-grid'),
+            unlockedCount: document.getElementById('unlocked-count'),
+            nextLevelNum: document.getElementById('next-level-num'),
+            
+            hudLevel: document.getElementById('hud-level'),
+            hudTheme: document.getElementById('hud-theme'),
+            score: document.getElementById('score'),
+            timer: document.getElementById('timer'),
+            progressBar: document.getElementById('progress-bar'),
+
+            resTitle: document.getElementById('res-title'),
+            resMessage: document.getElementById('res-message'),
+            resLevel: document.getElementById('res-level'),
+            resScore: document.getElementById('res-score'),
+            resTotalScore: document.getElementById('res-total-score'),
+            resTheme: document.getElementById('res-theme'),
+            
+            btnResMenu: document.getElementById('btn-res-menu'),
+            btnResNext: document.getElementById('btn-res-next'),
+            btnResRetry: document.getElementById('btn-res-retry'),
+            
+            // New Buttons & Modals
+            resBtnGroupNormal: document.getElementById('res-btn-group-normal'),
+            resBtnGroupEndgame: document.getElementById('res-btn-group-endgame'),
+            btnResKeep99: document.getElementById('btn-res-keep-99'),
+            btnResResetAll: document.getElementById('btn-res-reset-all'),
+            
+            modalConfirmReset: document.getElementById('modal-confirm-reset'),
+            btnCancelReset: document.getElementById('btn-cancel-reset'),
+            btnConfirmReset: document.getElementById('btn-confirm-reset'),
+
+            btnQuit: document.getElementById('btn-quit'),
+            btnSound: document.getElementById('btn-sound')
+        };
+
+        // Procedural Generation Main Function
+        function generateLevelConfig(level) {
+            // 1. Determine Theme
+            const themeIndex = (level - 1) % 4;
+            const theme = THEME_DATA[themeIndex];
+            
+            // 2. Generate Unique Seeds based on level
+            const s1 = (level * 7) % 15;
+            const s2 = (level * 13) % 20;
+            const s3 = (level * 23) % 25;
+            
+            // 3. Generate Colors & Setup Gradients (Realistic Shading)
+            const baseHue = (level * 137.5) % 360; 
+            const acc1Hue = (baseHue + 120) % 360;
+            const acc2Hue = (baseHue + 240) % 360;
+            const dtlHue  = (baseHue + 60) % 360;
+
+            const hsl = (h, s, l) => `hsl(${h}, ${s}%, ${l}%)`;
+
+            // Injecting Dynamic Gradients into the DOM for this level
+            const defs = document.getElementById('dynamic-gradients');
+            defs.innerHTML = `
+                <linearGradient id="g-base" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="${hsl(baseHue, 70, 60)}" />
+                    <stop offset="100%" stop-color="${hsl(baseHue, 70, 25)}" />
+                </linearGradient>
+                <linearGradient id="g-acc1" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="${hsl(acc1Hue, 80, 65)}" />
+                    <stop offset="100%" stop-color="${hsl(acc1Hue, 80, 30)}" />
+                </linearGradient>
+                <linearGradient id="g-acc2" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="${hsl(acc2Hue, 90, 70)}" />
+                    <stop offset="100%" stop-color="${hsl(acc2Hue, 90, 40)}" />
+                </linearGradient>
+                <linearGradient id="g-dtl" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="${hsl(dtlHue, 30, 45)}" />
+                    <stop offset="100%" stop-color="${hsl(dtlHue, 30, 15)}" />
+                </linearGradient>
+            `;
+
+            // Colors object is no longer strictly needed since SVG strings use url(#id) directly now, 
+            // but we pass an empty object to keep the generator signature the same.
+            const colors = {};
+
+            // 4. Time limit
+            let timeLimit = 120 - Math.floor(level / 1.5); 
+            if (timeLimit < 40) timeLimit = 40; 
+
+            // 5. Generate Parts via specific Theme Generator
+            const rawParts = Generators[theme.id](s1, s2, s3, colors);
+
+            // 6. Scale for Mobile gracefully
+            const scale = window.innerWidth < 600 ? 0.65 : 1;
+            const scaledParts = rawParts.map(part => ({
+                ...part,
+                w: part.w * scale,
+                h: part.h * scale,
+                tx: part.tx * scale,
+                ty: part.ty * scale
+            }));
+
+            return { parts: scaledParts, timeLimit: timeLimit, themeData: theme };
+        }
+
+        function renderMenu() {
+            loadData();
+            DOM.menuScreen.classList.remove('hidden');
+            DOM.resScreen.classList.add('hidden');
+            
+            DOM.unlockedCount.innerText = gameState.maxUnlockedLevel;
+            
+            let nextLv = gameState.maxUnlockedLevel;
+            if(nextLv > TOTAL_LEVELS) nextLv = TOTAL_LEVELS;
+            DOM.nextLevelNum.innerText = nextLv;
+            
+            // Render Level Grid
+            DOM.levelGrid.innerHTML = '';
+            for(let i=1; i<=TOTAL_LEVELS; i++) {
+                const btn = document.createElement('button');
+                btn.className = 'level-btn ' + (i < gameState.maxUnlockedLevel ? 'completed' : i === gameState.maxUnlockedLevel ? 'unlocked' : 'locked');
+                btn.innerText = i;
+                
+                if (i <= gameState.maxUnlockedLevel) {
+                    btn.onclick = () => startGame(i);
+                }
+                DOM.levelGrid.appendChild(btn);
+            }
+        }
+
+        const getWorkspaceCenter = () => {
+            const rect = DOM.workspace.getBoundingClientRect();
+            // Offset slightly higher to leave room for bottom parts tray on mobile
+            const yOffset = window.innerWidth < 600 ? -30 : 0; 
+            return { x: rect.width / 2, y: (rect.height / 2) + yOffset };
+        };
+
+        function startGame(level) {
+            gameState.currentLevel = level;
+            const levelData = generateLevelConfig(level);
+            
+            gameState.activePartsConfig = levelData.parts;
+            gameState.timeLeft = levelData.timeLimit;
+            gameState.score = 0;
+            gameState.partsPlaced = 0;
+            gameState.isPlaying = true;
+            
+            // Update UI with Theme info
+            DOM.hudTheme.innerHTML = `${levelData.themeData.icon} ${levelData.themeData.name}`;
+            DOM.resTheme.innerHTML = `${levelData.themeData.icon} ${levelData.themeData.name}`;
+
+            updateHUD();
+            createBoard();
+            
+            DOM.menuScreen.classList.add('hidden');
+            DOM.resScreen.classList.add('hidden');
+            DOM.partsContainer.classList.remove('mecha-completed');
+            
+            if(gameState.timerInterval) clearInterval(gameState.timerInterval);
+            gameState.timerInterval = setInterval(updateTimer, 1000);
+            
+            Sounds.click();
+        }
+
+        function createBoard() {
+            DOM.targetsContainer.innerHTML = '';
+            DOM.partsContainer.innerHTML = '';
+            DOM.effectsContainer.innerHTML = '';
+            
+            const center = getWorkspaceCenter();
+            const w = DOM.workspace.clientWidth;
+            const h = DOM.workspace.clientHeight;
+            const isMobile = w < 600;
+
+            gameState.activePartsConfig.forEach((partData, index) => {
+                // 1. Target Ghost
+                const target = document.createElement('div');
+                target.className = 'part-target';
+                target.id = `target-${partData.id}`;
+                target.style.width = `${partData.w}px`;
+                target.style.height = `${partData.h}px`;
+                
+                const targetAbsX = center.x + partData.tx - (partData.w / 2);
+                const targetAbsY = center.y + partData.ty - (partData.h / 2);
+                
+                target.style.left = `${targetAbsX}px`;
+                target.style.top = `${targetAbsY}px`;
+                // Silhouette representation
+                target.innerHTML = partData.svg.replace(/fill="[^"]+"/g, 'fill="#333"').replace(/stroke="[^"]+"/g, 'stroke="#555"');
+                DOM.targetsContainer.appendChild(target);
+
+                // 2. Draggable Part
+                const part = document.createElement('div');
+                part.className = 'mecha-part';
+                part.id = `part-${partData.id}`;
+                part.dataset.id = partData.id;
+                part.style.width = `${partData.w}px`;
+                part.style.height = `${partData.h}px`;
+                
+                // Smart Positioning logic for mobile vs desktop
+                let randX, randY;
+                if (isMobile) {
+                    // Mobile: Distribute between top area and bottom area
+                    const padding = 10;
+                    if (index % 2 === 0) {
+                        // Top area
+                        randX = padding + (index/2) * (w/4) % (w-partData.w-padding*2);
+                        randY = 55 + Math.random() * 20; // ปรับให้ชิดกรอบบนมากขึ้น
+                    } else {
+                        // Bottom area
+                        randX = padding + ((index-1)/2) * (w/4) % (w-partData.w-padding*2);
+                        randY = h - 90 + Math.random() * 20; // ปรับให้ชิดขอบล่างพอดี ไม่ล้นจอ
+                    }
+                } else {
+                    // Desktop: Left and Right sides
+                    const padding = 30;
+                    if (index % 2 === 0) {
+                        randX = padding + Math.random() * (center.x - 200 - padding);
+                    } else {
+                        randX = center.x + 150 + Math.random() * (w - center.x - 150 - partData.w - padding);
+                    }
+                    randY = padding + 50 + Math.random() * (h - partData.h - padding * 2 - 50);
+                }
+
+                part.dataset.initialX = randX;
+                part.dataset.initialY = randY;
+                part.style.left = `${randX}px`;
+                part.style.top = `${randY}px`;
+                part.innerHTML = partData.svg;
+                
+                // Pointer Events (Handles Touch and Mouse unified)
+                part.addEventListener('pointerdown', handlePointerDown);
+                
+                DOM.partsContainer.appendChild(part);
+            });
+        }
+
+        let activePart = null;
+        let startX, startY;
+        let partStartX, partStartY;
+
+        function handlePointerDown(e) {
+            if (!gameState.isPlaying || e.target.closest('.mecha-part').classList.contains('locked')) return;
+            
+            // e.preventDefault(); // Sometimes prevents touch, handle with touch-action css
+            activePart = e.target.closest('.mecha-part');
+            DOM.partsContainer.appendChild(activePart); // Bring to front
+            
+            const target = document.getElementById(`target-${activePart.dataset.id}`);
+            if(target) target.classList.add('active-hint');
+            
+            startX = e.clientX;
+            startY = e.clientY;
+            partStartX = parseFloat(activePart.style.left) || 0;
+            partStartY = parseFloat(activePart.style.top) || 0;
+            
+            Sounds.grab();
+            activePart.style.transition = 'none';
+            activePart.style.zIndex = '100';
+
+            document.addEventListener('pointermove', handlePointerMove);
+            document.addEventListener('pointerup', handlePointerUp);
+            document.addEventListener('pointercancel', handlePointerUp);
+        }
+
+        function handlePointerMove(e) {
+            if (!activePart) return;
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            activePart.style.left = `${partStartX + dx}px`;
+            activePart.style.top = `${partStartY + dy}px`;
+        }
+
+        function handlePointerUp(e) {
+            if (!activePart) return;
+            
+            document.removeEventListener('pointermove', handlePointerMove);
+            document.removeEventListener('pointerup', handlePointerUp);
+            document.removeEventListener('pointercancel', handlePointerUp);
+            
+            const partId = activePart.dataset.id;
+            const target = document.getElementById(`target-${partId}`);
+            if(target) target.classList.remove('active-hint');
+            
+            activePart.style.transition = 'transform 0.1s, left 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), top 0.3s ease-out';
+            activePart.style.zIndex = '';
+            
+            checkPlacement(activePart, partId);
+            activePart = null;
+        }
+
+        function checkPlacement(partElement, partId) {
+            const partData = gameState.activePartsConfig.find(p => p.id === partId);
+            const center = getWorkspaceCenter();
+            
+            const targetAbsX = center.x + partData.tx - (partData.w / 2);
+            const targetAbsY = center.y + partData.ty - (partData.h / 2);
+            
+            const currentX = parseFloat(partElement.style.left);
+            const currentY = parseFloat(partElement.style.top);
+            
+            const dx = targetAbsX - currentX;
+            const dy = targetAbsY - currentY;
+            const distance = Math.sqrt(dx*dx + dy*dy);
+            
+            // Tolerance slightly larger on mobile for ease of play
+            const tolerance = window.innerWidth < 600 ? 50 : 35;
+
+            if (distance < tolerance) {
+                // Success
+                partElement.style.left = `${targetAbsX}px`;
+                partElement.style.top = `${targetAbsY}px`;
+                partElement.classList.add('locked', 'anim-lock');
+                document.getElementById(`target-${partId}`).style.opacity = '0';
+                
+                const points = 100 + Math.floor(gameState.timeLeft / 2);
+                animateScoreAdd(points);
+                
+                gameState.partsPlaced++;
+                updateHUD();
+                
+                Sounds.lock();
+                createSparks(targetAbsX + partData.w/2, targetAbsY + partData.h/2);
+                
+                if (gameState.partsPlaced === gameState.activePartsConfig.length) {
+                    setTimeout(handleVictory, 500);
+                }
+            } else {
+                // Fail
+                Sounds.error();
+                partElement.style.left = `${partElement.dataset.initialX}px`;
+                partElement.style.top = `${partElement.dataset.initialY}px`;
+                
+                gameState.score = Math.max(0, gameState.score - 10);
+                updateHUD();
+            }
+        }
+
+        function createSparks(x, y) {
+            for(let i=0; i<8; i++) {
+                const spark = document.createElement('div');
+                spark.className = 'sparkle';
+                spark.style.left = `${x}px`;
+                spark.style.top = `${y}px`;
+                
+                const angle = Math.random() * Math.PI * 2;
+                const dist = 30 + Math.random() * 40;
+                spark.style.setProperty('--tx', `${Math.cos(angle) * dist}px`);
+                spark.style.setProperty('--ty', `${Math.sin(angle) * dist}px`);
+                spark.style.animation = `spark ${0.3 + Math.random()*0.3}s ease-out forwards`;
+                
+                DOM.effectsContainer.appendChild(spark);
+                setTimeout(() => { if(spark.parentNode) spark.remove(); }, 600);
+            }
+        }
+
+        function updateTimer() {
+            if (!gameState.isPlaying) return;
+            gameState.timeLeft--;
+            updateHUD();
+            
+            if (gameState.timeLeft <= 10) {
+                DOM.timer.classList.add('text-red-500', 'scale-110');
+                if(gameState.timeLeft % 2 === 0) Sounds.playTone(800, 'square', 0.1, 0.05);
+            } else {
+                DOM.timer.classList.remove('text-red-500', 'scale-110');
+            }
+            
+            if (gameState.timeLeft <= 0) handleGameOver(false);
+        }
+
+        function updateHUD() {
+            DOM.hudLevel.innerText = gameState.currentLevel;
+            DOM.score.innerText = gameState.score;
+            DOM.timer.innerText = gameState.timeLeft;
+            const progressPercent = (gameState.partsPlaced / gameState.activePartsConfig.length) * 100;
+            DOM.progressBar.style.width = `${progressPercent}%`;
+        }
+
+        function animateScoreAdd(points) {
+            let current = gameState.score;
+            gameState.score += points;
+            let step = Math.ceil(points / 10);
+            
+            let timer = setInterval(() => {
+                current += step;
+                if(current >= gameState.score) {
+                    current = gameState.score;
+                    clearInterval(timer);
+                }
+                DOM.score.innerText = current;
+                DOM.score.classList.add('text-yellow-400');
+                setTimeout(() => DOM.score.classList.remove('text-yellow-400'), 50);
+            }, 30);
+        }
+
+        function handleVictory() {
+            gameState.isPlaying = false;
+            clearInterval(gameState.timerInterval);
+            
+            const timeBonus = gameState.timeLeft * 10;
+            animateScoreAdd(timeBonus);
+            
+            Sounds.success();
+            DOM.partsContainer.classList.add('mecha-completed');
+            
+            // Update progression
+            if (gameState.currentLevel === gameState.maxUnlockedLevel && gameState.maxUnlockedLevel < TOTAL_LEVELS) {
+                gameState.maxUnlockedLevel++;
+            }
+            gameState.totalScore += gameState.score;
+            saveData();
+            
+            setTimeout(() => showResultScreen(true), 1500);
+        }
+
+        function handleGameOver() {
+            gameState.isPlaying = false;
+            clearInterval(gameState.timerInterval);
+            Sounds.gameover();
+            showResultScreen(false);
+        }
+
+        function showResultScreen(won) {
+            DOM.resScreen.classList.remove('hidden');
+            DOM.resLevel.innerText = gameState.currentLevel;
+            DOM.resScore.innerText = gameState.score;
+            DOM.resTotalScore.innerText = gameState.totalScore;
+            
+            DOM.resBtnGroupNormal.classList.remove('hidden');
+            DOM.resBtnGroupEndgame.classList.add('hidden');
+            
+            if (won) {
+                DOM.resTitle.innerText = "STAGE CLEAR!";
+                DOM.resTitle.className = "text-5xl md:text-6xl font-bold mb-4 text-center text-transparent bg-clip-text bg-gradient-to-b from-green-300 to-green-600 filter drop-shadow-[0_0_8px_rgba(0,255,0,0.5)]";
+                DOM.resMessage.innerText = "หุ่นยนต์พร้อมลุย! ผลงานยอดเยี่ยม";
+                
+                if (gameState.currentLevel < TOTAL_LEVELS) {
+                    DOM.btnResNext.classList.remove('hidden');
+                    DOM.btnResRetry.classList.add('hidden');
+                } else {
+                    DOM.resBtnGroupNormal.classList.add('hidden');
+                    DOM.resBtnGroupEndgame.classList.remove('hidden');
+                    DOM.resMessage.innerText = "ยินดีด้วย! คุณเคลียร์ครบ 100 ด่านแล้ว!\nต้องการรีเซ็ตข้อมูลเพื่อเริ่มการผจญภัยใหม่หรือไม่?";
+                }
+            } else {
+                DOM.resTitle.innerText = "TIME'S UP!";
+                DOM.resTitle.className = "text-5xl md:text-6xl font-bold mb-4 text-center text-red-500 filter drop-shadow-[0_0_8px_rgba(255,0,0,0.5)]";
+                DOM.resMessage.innerText = "เวลาหมด! ประกอบหุ่นไม่สำเร็จ";
+                DOM.btnResNext.classList.add('hidden');
+                DOM.btnResRetry.classList.remove('hidden');
+            }
+        }
+
+        // Buttons
+        document.getElementById('btn-play-next').addEventListener('click', () => {
+            let nextLv = gameState.maxUnlockedLevel;
+            if(nextLv > TOTAL_LEVELS) nextLv = TOTAL_LEVELS;
+            startGame(nextLv);
+        });
+        
+        DOM.btnQuit.addEventListener('click', () => {
+            gameState.isPlaying = false;
+            clearInterval(gameState.timerInterval);
+            renderMenu();
+            Sounds.click();
+        });
+
+        document.getElementById('btn-res-menu').addEventListener('click', () => {
+            renderMenu();
+            Sounds.click();
+        });
+        
+        document.getElementById('btn-res-next').addEventListener('click', () => {
+            startGame(gameState.currentLevel + 1);
+        });
+        
+        document.getElementById('btn-res-retry').addEventListener('click', () => {
+            startGame(gameState.currentLevel);
+        });
+
+        // --- Endgame Level 100 Handlers ---
+        DOM.btnResKeep99.addEventListener('click', () => {
+            gameState.maxUnlockedLevel = 99;
+            saveData();
+            renderMenu();
+            Sounds.click();
+        });
+
+        DOM.btnResResetAll.addEventListener('click', () => {
+            localStorage.removeItem('mechaSaveData');
+            gameState.maxUnlockedLevel = 1;
+            gameState.totalScore = 0;
+            renderMenu();
+            Sounds.click();
+        });
+
+        // --- Custom Confirm Reset Logic ---
+        document.getElementById('btn-reset-data').addEventListener('click', () => {
+            DOM.modalConfirmReset.classList.remove('hidden');
+            Sounds.click();
+        });
+        
+        DOM.btnCancelReset.addEventListener('click', () => {
+            DOM.modalConfirmReset.classList.add('hidden');
+            Sounds.click();
+        });
+
+        DOM.btnConfirmReset.addEventListener('click', () => {
+            localStorage.removeItem('mechaSaveData');
+            gameState.maxUnlockedLevel = 1;
+            gameState.totalScore = 0;
+            DOM.modalConfirmReset.classList.add('hidden');
+            renderMenu();
+            Sounds.click();
+        });
+
+        DOM.btnSound.addEventListener('click', () => {
+            soundEnabled = !soundEnabled;
+            const iconOn = document.getElementById('icon-sound-on');
+            const iconOff = document.getElementById('icon-sound-off');
+            if (soundEnabled) {
+                iconOn.classList.remove('hidden');
+                iconOff.classList.add('hidden');
+                if(audioCtx.state === 'suspended') audioCtx.resume();
+                Sounds.click();
+            } else {
+                iconOn.classList.add('hidden');
+                iconOff.classList.remove('hidden');
+            }
+        });
+
+        // Handle Resize (Responsive)
+        window.addEventListener('resize', () => {
+            if (!gameState.isPlaying) return;
+            const newCenter = getWorkspaceCenter();
+            
+            // Adjust locked parts and targets to new center
+            gameState.activePartsConfig.forEach(partData => {
+                const target = document.getElementById(`target-${partData.id}`);
+                const part = document.getElementById(`part-${partData.id}`);
+                
+                const targetAbsX = newCenter.x + partData.tx - (partData.w / 2);
+                const targetAbsY = newCenter.y + partData.ty - (partData.h / 2);
+                
+                if (target) {
+                    target.style.left = `${targetAbsX}px`;
+                    target.style.top = `${targetAbsY}px`;
+                }
+                
+                if (part && part.classList.contains('locked')) {
+                    part.style.transition = 'none';
+                    part.style.left = `${targetAbsX}px`;
+                    part.style.top = `${targetAbsY}px`;
+                }
+            });
+        });
+
+        // Initialize Audio context cleanly
+        const initAudio = () => {
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            document.removeEventListener('pointerdown', initAudio);
+        };
+        document.addEventListener('pointerdown', initAudio, {once:true});
+
+        // Boot
+        renderMenu();
+
+    </script>
+</body>
+</html>
