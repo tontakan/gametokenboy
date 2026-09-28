@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NEON Escape Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rajdhani:wght@500;700&display=swap');
+
+        :root {
+            --bg-color: #0b0c10;
+            --road-color: #1f2833;
+            --line-color: #66fcf1;
+            --player-color: #c5a3ff; /* Light purple neon */
+            --enemy-colors: #ff0055, #00e5ff, #ffea00, #ff5e00;
+            --text-neon: #66fcf1;
+            --btn-neon: #45a29e;
+            --neon-glow: 0 0 10px #66fcf1, 0 0 20px #66fcf1;
+            --neon-glow-red: 0 0 10px #ff0055, 0 0 20px #ff0055;
+            --neon-glow-green: 0 0 10px #00ff00, 0 0 20px #00ff00;
+            --neon-glow-purple: 0 0 10px #c5a3ff, 0 0 20px #c5a3ff, 0 0 30px #c5a3ff;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: white;
+            font-family: 'Rajdhani', sans-serif;
+            overflow: hidden;
+            touch-action: none; /* Prevent scroll on touch devices */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 450px;
+            height: 100%;
+            max-height: 800px;
+            background-color: var(--road-color);
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(102, 252, 241, 0.2);
+            border: 2px solid var(--line-color);
+            border-radius: 10px;
+        }
+
+        .road-line {
+            position: absolute;
+            width: 4px;
+            height: 40px;
+            background-color: var(--line-color);
+            left: 50%;
+            transform: translateX(-50%);
+            box-shadow: var(--neon-glow);
+        }
+
+        .road-border {
+            position: absolute;
+            width: 6px;
+            height: 100%;
+            background-color: var(--line-color);
+            top: 0;
+            box-shadow: var(--neon-glow);
+        }
+        
+        .road-border.left { left: 10px; }
+        .road-border.right { right: 10px; }
+
+        .car {
+            position: absolute;
+            width: 40px;
+            height: 70px;
+            border-radius: 8px;
+            /* เอา bottom และ transition เดิมออกเพื่อให้ขยับได้อิสระแบบเรียลไทม์ */
+        }
+
+        #player {
+            background-color: var(--player-color);
+            box-shadow: var(--neon-glow-purple);
+            z-index: 10;
+        }
+
+        /* Player car details */
+        #player::before, #player::after {
+            content: '';
+            position: absolute;
+            background-color: #222;
+            width: 32px;
+            height: 12px;
+            left: 4px;
+            border-radius: 2px;
+        }
+        #player::before { top: 10px; }
+        #player::after { bottom: 10px; }
+
+        .enemy {
+            z-index: 9;
+            /* Box shadow added dynamically based on color */
+        }
+        
+        .enemy::before, .enemy::after {
+            content: '';
+            position: absolute;
+            background-color: #111;
+            width: 32px;
+            height: 12px;
+            left: 4px;
+            border-radius: 2px;
+        }
+        .enemy::before { top: 10px; }
+        .enemy::after { bottom: 10px; }
+
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            z-index: 20;
+            font-size: 0.75rem; /* ลดขนาดฟอนต์ลงเล็กน้อยเพื่อให้พอดีกับ 4 ช่อง */
+            text-transform: uppercase;
+            text-shadow: var(--neon-glow);
+            color: var(--text-neon);
+        }
+
+        #distance-display, #speed-display, #score-display, #level-display {
+            background: rgba(11, 12, 16, 0.7);
+            padding: 4px 5px;
+            border-radius: 5px;
+            border: 1px solid var(--line-color);
+            text-align: center;
+        }
+
+        #level-display {
+            color: #00ff00;
+            border-color: #00ff00;
+            text-shadow: 0 0 10px #00ff00;
+        }
+
+        #score-display {
+            color: #ffea00;
+            border-color: #ffea00;
+            text-shadow: 0 0 10px #ffea00;
+        }
+
+        #shield-display {
+            color: #00e5ff;
+            border-color: #00e5ff;
+            text-shadow: 0 0 10px #00e5ff;
+        }
+
+        .ambulance {
+            z-index: 9;
+            background-color: #ffffff !important;
+            box-shadow: 0 0 15px #ffffff, 0 0 20px #ff0000 !important;
+        }
+        
+        .ambulance::before {
+            content: ''; position: absolute; background-color: #ff0000;
+            width: 20px !important; height: 6px !important; 
+            top: 32px !important; left: 10px !important; 
+            border-radius: 0 !important;
+        }
+        
+        .ambulance::after {
+            content: ''; position: absolute; background-color: #ff0000;
+            width: 6px !important; height: 20px !important; 
+            top: 25px !important; left: 17px !important; 
+            border-radius: 0 !important;
+        }
+
+        .shield-active {
+            box-shadow: 0 0 15px #00e5ff, 0 0 30px #00e5ff !important;
+            border: 2px solid #00e5ff;
+        }
+
+        .invincible {
+            animation: blink 0.15s infinite;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(11, 12, 16, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+            backdrop-filter: blur(3px);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        h1 {
+            font-family: 'Press Start 2P', cursive;
+            color: var(--text-neon);
+            text-shadow: var(--neon-glow);
+            font-size: 2rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            line-height: 1.5;
+        }
+
+        .btn {
+            background-color: transparent;
+            color: var(--text-neon);
+            border: 2px solid var(--text-neon);
+            padding: 15px 30px;
+            font-size: 1.5rem;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 30px;
+            margin: 10px;
+            transition: all 0.3s;
+            box-shadow: 0 0 10px rgba(102, 252, 241, 0.5) inset, 0 0 10px rgba(102, 252, 241, 0.5);
+            text-transform: uppercase;
+        }
+
+        .btn:hover, .btn:active {
+            background-color: var(--text-neon);
+            color: var(--bg-color);
+            box-shadow: var(--neon-glow);
+        }
+
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 20;
+            box-sizing: border-box;
+            pointer-events: none; /* ให้สัมผัสทะลุช่องว่างตรงกลางได้ */
+        }
+
+        .control-group {
+            display: flex;
+            gap: 10px;
+            pointer-events: auto; /* เปิดรับการสัมผัสเฉพาะที่ปุ่ม */
+        }
+
+        .control-btn {
+            width: 60px;
+            height: 60px;
+            background-color: rgba(102, 252, 241, 0.1);
+            border: 2px solid var(--line-color);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--line-color);
+            font-size: 2rem;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(102, 252, 241, 0.3);
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .control-btn:active {
+            background-color: rgba(102, 252, 241, 0.3);
+            box-shadow: var(--neon-glow);
+            transform: scale(0.95);
+        }
+
+        /* SVG Icons for buttons */
+        .icon-svg {
+            width: 32px;
+            height: 32px;
+            fill: currentColor;
+        }
+
+        #pause-btn-top {
+            position: absolute;
+            top: 70px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            background: rgba(11, 12, 16, 0.7);
+            border: 1px solid var(--line-color);
+            border-radius: 5px;
+            color: var(--line-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            z-index: 20;
+            font-size: 1.5rem;
+        }
+
+        .result-title {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .result-busted { color: #ff0055; text-shadow: var(--neon-glow-red); }
+        .result-win { color: #00ff00; text-shadow: var(--neon-glow-green); }
+
+        .stats-text {
+            font-size: 1.5rem;
+            margin-bottom: 2rem;
+            color: white;
+            text-align: center;
+        }
+        
+        .finish-line {
+            position: absolute;
+            width: 100%;
+            height: 20px;
+            background: repeating-linear-gradient(
+                90deg,
+                #fff,
+                #fff 20px,
+                #000 20px,
+                #000 40px
+            );
+            top: -20px; /* Start above screen */
+            z-index: 5;
+            box-shadow: 0 0 15px white;
+        }
+
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+        .blink-text {
+            animation: blink 1s infinite;
+        }
+
+        /* Leaderboard Styles */
+        .leaderboard-box {
+            background: rgba(11, 12, 16, 0.8);
+            border: 2px solid var(--line-color);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            width: 80%;
+            max-width: 350px;
+            box-shadow: 0 0 10px rgba(102, 252, 241, 0.3);
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        /* Custom Scrollbar for Leaderboard */
+        .leaderboard-box::-webkit-scrollbar { width: 5px; }
+        .leaderboard-box::-webkit-scrollbar-thumb { background: var(--line-color); border-radius: 5px; }
+        
+        .leaderboard-box h3 {
+            color: #ffea00;
+            text-shadow: 0 0 5px #ffea00;
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 1rem;
+            text-align: center;
+        }
+        .lb-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 1.2rem;
+            border-bottom: 1px dashed rgba(102, 252, 241, 0.3);
+            padding: 5px 0;
+        }
+        .lb-row:last-child {
+            border-bottom: none;
+        }
+        .lb-rank { font-weight: bold; width: 40px; text-align: left;}
+        .lb-score { color: white; text-align: right; flex-grow: 1;}
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        
+        <!-- Road Borders -->
+        <div class="road-border left"></div>
+        <div class="road-border right"></div>
+
+        <!-- Road Lines (animated via JS) -->
+        <div id="road-lines-container"></div>
+
+        <!-- HUD -->
+        <div id="hud" style="top:15px; left:10px; right:10px; display:flex; flex-wrap:wrap; justify-content:space-between; gap:5px; font-size:0.65rem;">
+            <div id="level-display" style="flex: 1 1 auto;">LVL: <span id="level-val">1</span></div>
+            <div id="distance-display" style="flex: 1 1 auto;">DIST: <span id="dist-val">0.00</span></div>
+            <div id="score-display" style="flex: 1 1 auto;">SCORE: <span id="score-val">0</span></div>
+            <div id="speed-display" style="flex: 1 1 auto;"><span id="speed-val">0</span> KM/H</div>
+            <div id="shield-display" style="flex: 1 1 auto; background: rgba(11, 12, 16, 0.7); padding: 4px 5px; border-radius: 5px; border: 1px solid var(--line-color); text-align: center;">SHIELD: <span id="shield-val">0</span>/3</div>
+        </div>
+
+        <div id="pause-btn-top">
+            <svg class="icon-svg" style="width:20px;height:20px" viewBox="0 0 24 24">
+                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+            </svg>
+        </div>
+
+        <!-- Game Elements -->
+        <div id="items-container"></div>
+        <div id="enemies-container"></div>
+        <div id="player" class="car"></div>
+
+        <!-- Mobile Controls -->
+        <div id="controls">
+            <div class="control-group">
+                <div id="btn-left" class="control-btn">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z"/></svg>
+                </div>
+                <div id="btn-right" class="control-btn">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>
+                </div>
+            </div>
+            <div class="control-group">
+                <div id="btn-up" class="control-btn">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>
+                </div>
+                <div id="btn-down" class="control-btn">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Menu Overlay -->
+        <div id="menu-screen" class="overlay">
+            <h1>NEON<br>ESCAPE</h1>
+            <div id="leaderboard-container" class="leaderboard-box">
+                <h3>TOP 10 PILOTS</h3>
+                <div id="leaderboard-list"></div>
+            </div>
+            <button id="start-btn" class="btn">START GAME</button>
+        </div>
+
+        <!-- Pause Screen Overlay -->
+        <div id="pause-screen" class="overlay hidden">
+            <h1>PAUSED</h1>
+            <button id="resume-btn" class="btn">RESUME</button>
+            <button id="restart-btn-pause" class="btn">RESTART</button>
+        </div>
+
+        <!-- Game Over / Result Screen Overlay -->
+        <div id="result-screen" class="overlay hidden">
+            <div id="result-title" class="result-title">BUSTED!</div>
+            <div id="result-message" class="stats-text">You hit the traffic!</div>
+            <div class="stats-text">
+                DISTANCE: <span id="final-dist">0.00</span> KM
+            </div>
+            <div class="stats-text" style="color: #ffea00; text-shadow: 0 0 10px #ffea00; font-size: 2rem; margin-top: -10px;">
+                SCORE: <span id="final-score">0</span>
+            </div>
+            <div id="new-record-msg" class="stats-text blink-text hidden" style="color: #00ff00; text-shadow: var(--neon-glow-green); font-size: 1.2rem; margin-top: 10px;">
+                NEW HIGH SCORE!
+            </div>
+            <!-- Circular Restart Button like in video -->
+            <button id="restart-btn" class="control-btn" style="width: 80px; height: 80px; margin-top: 20px; border-color: #00ff00; color: #00ff00; box-shadow: 0 0 15px rgba(0,255,0,0.3);">
+                <svg class="icon-svg" style="width:40px;height:40px" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+            </button>
+            <div style="margin-top: 10px; color: var(--text-neon);">PLAY AGAIN</div>
+        </div>
+    </div>
+
+    <script type="module">
+        // DOM Elements
+        const container = document.getElementById('game-container');
+        const playerEl = document.getElementById('player');
+        const enemiesContainer = document.getElementById('enemies-container');
+        const itemsContainer = document.getElementById('items-container');
+        const roadLinesContainer = document.getElementById('road-lines-container');
+        
+        // UI Elements
+        const distVal = document.getElementById('dist-val');
+        const scoreVal = document.getElementById('score-val');
+        const speedVal = document.getElementById('speed-val');
+        const levelVal = document.getElementById('level-val');
+        const shieldVal = document.getElementById('shield-val');
+        const menuScreen = document.getElementById('menu-screen');
+        const pauseScreen = document.getElementById('pause-screen');
+        const resultScreen = document.getElementById('result-screen');
+        const resultTitle = document.getElementById('result-title');
+        const resultMessage = document.getElementById('result-message');
+        const finalDist = document.getElementById('final-dist');
+        const finalScore = document.getElementById('final-score');
+        const leaderboardList = document.getElementById('leaderboard-list');
+        const newRecordMsg = document.getElementById('new-record-msg');
+
+        // Buttons
+        const startBtn = document.getElementById('start-btn');
+        const resumeBtn = document.getElementById('resume-btn');
+        const restartBtnPause = document.getElementById('restart-btn-pause');
+        const restartBtn = document.getElementById('restart-btn');
+        const pauseBtnTop = document.getElementById('pause-btn-top');
+        const btnLeft = document.getElementById('btn-left');
+        const btnRight = document.getElementById('btn-right');
+        const btnUp = document.getElementById('btn-up');
+        const btnDown = document.getElementById('btn-down');
+
+        // Game Configuration
+        const LUK_LANES = 3; // Number of lanes
+        const MAX_SPEED = 300; // ปรับความเร็วสูงสุดเป็น 300 km/h
+        const MIN_SPEED = 60;
+        const MAX_SHIELDS = 3; // สะสมโล่ได้สูงสุด 3 อัน
+        const ENEMY_COLORS = ['#ff0055', '#00e5ff', '#ffea00', '#ff5e00'];
+
+        // Game State
+        let gameState = 'MENU'; // MENU, PLAYING, PAUSED, OVER
+        let animationFrameId;
+        
+        let distance = 0; // In KM
+        let score = 0; // Player score
+        let speed = 0; // Current speed
+        let targetSpeed = 60; // เริ่มต้นช้าลงที่ 60
+        let level = 1; // ตัวแปรเก็บเลเวล
+        let shields = 0; // จำนวนโล่ปัจจุบัน
+        
+        // Player state
+        let playerX = 0;
+        let playerY = 0;
+        const playerWidth = 40;
+        const playerHeight = 70;
+        const PLAYER_SPEED = 700; // เพิ่มความเร็วในการตอบสนองของรถให้ขยับตามนิ้วทันที (พิกเซล/วินาที)
+        
+        // Movement Flags (สถานะการกดปุ่ม)
+        let isMovingLeft = false;
+        let isMovingRight = false;
+        let isMovingUp = false;
+        let isMovingDown = false;
+        
+        // Arrays for dynamic elements
+        let enemies = [];
+        let items = [];
+        let roadLines = [];
+
+        let lastTime = 0;
+        let enemySpawnTimer = 0;
+        let itemSpawnTimer = 0;
+        let invincibilityTimer = 0;
+        let highScores = []; // เก็บ Array ของคะแนน 10 อันดับ
+
+        // --- Data Saving System (Local Storage) ---
+        async function initStorage() {
+            loadHighScores();
+        }
+
+        function loadHighScores() {
+            try {
+                const savedScores = localStorage.getItem('neonEscapeTop10');
+                if (savedScores) {
+                    highScores = JSON.parse(savedScores);
+                } else {
+                    // โอนย้ายข้อมูลจากระบบเซฟเก่า 1 อันดับ (ถ้าเคยมี)
+                    const oldScore = localStorage.getItem('neonEscapeHighScore');
+                    if (oldScore) {
+                        highScores = [{ score: parseFloat(oldScore) }];
+                        localStorage.removeItem('neonEscapeHighScore');
+                        saveScoresToStorage();
+                    }
+                }
+                renderLeaderboard();
+            } catch (error) {
+                console.error("Error loading scores from localStorage:", error);
+            }
+        }
+
+        function saveScore(newScore) {
+            const intScore = Math.floor(newScore);
+            if (intScore <= 0) return false;
+
+            const scoreObj = { score: intScore };
+            highScores.push(scoreObj);
+            
+            // เรียงลำดับจากคะแนนมากไปน้อย
+            highScores.sort((a, b) => b.score - a.score);
+            
+            // ตัดทิ้งให้เหลือแค่ 10 อันดับสูงสุด
+            if (highScores.length > 10) {
+                highScores = highScores.slice(0, 10);
+            }
+            
+            saveScoresToStorage();
+            renderLeaderboard();
+
+            // คืนค่า true หากคะแนนที่ได้รอบนี้ติด Top 10
+            return highScores.includes(scoreObj);
+        }
+
+        function saveScoresToStorage() {
+            try {
+                localStorage.setItem('neonEscapeTop10', JSON.stringify(highScores));
+            } catch (error) {
+                console.error("Error saving scores to localStorage:", error);
+            }
+        }
+
+        function renderLeaderboard() {
+            leaderboardList.innerHTML = '';
+            if (highScores.length === 0) {
+                leaderboardList.innerHTML = '<div style="font-size:1rem; color:#aaa; text-align:center;">No records yet</div>';
+                return;
+            }
+            
+            highScores.forEach((entry, index) => {
+                const row = document.createElement('div');
+                row.className = 'lb-row';
+                
+                // กำหนดสีของอันดับ 1, 2, 3
+                let rankColor = 'var(--player-color)'; // สีม่วงนีออนตามธีมสำหรับอันดับอื่นๆ
+                if(index === 0) rankColor = '#ffea00'; // ทอง
+                else if (index === 1) rankColor = '#c0c0c0'; // เงิน
+                else if (index === 2) rankColor = '#cd7f32'; // ทองแดง
+                
+                row.innerHTML = `
+                    <span class="lb-rank" style="color: ${rankColor}">${index + 1}.</span>
+                    <span class="lb-score">${entry.score}</span>
+                `;
+                leaderboardList.appendChild(row);
+            });
+        }
+        // --------------------------
+
+        function initGame() {
+            // Calculate lane positions based on container width
+            updateLanePositions();
+            window.addEventListener('resize', updateLanePositions);
+
+            // Create initial road lines
+            createRoadLines();
+            
+            // Set initial player position
+            updatePlayerVisual();
+        }
+
+        let lanePositions = [0, 0, 0];
+        
+        function updateLanePositions() {
+            const containerWidth = container.clientWidth;
+            // Usable width between borders
+            const usableWidth = containerWidth - 40; // 20px margin each side
+            const laneWidth = usableWidth / LUK_LANES;
+            
+            // Center of each lane
+            lanePositions[0] = 20 + (laneWidth / 2);
+            lanePositions[1] = 20 + laneWidth + (laneWidth / 2);
+            lanePositions[2] = 20 + (laneWidth * 2) + (laneWidth / 2);
+        }
+
+        function createRoadLines() {
+            roadLinesContainer.innerHTML = '';
+            roadLines = [];
+            
+            const containerHeight = container.clientHeight;
+            const lineSpacing = 80; // Distance between lines
+            const numLines = Math.ceil(containerHeight / lineSpacing) + 1;
+
+            // Two dashed lines dividing 3 lanes
+            for (let i = 1; i < LUK_LANES; i++) {
+                const laneDividerX = 20 + ((container.clientWidth - 40) / LUK_LANES) * i;
+                
+                for (let j = 0; j < numLines; j++) {
+                    const line = document.createElement('div');
+                    line.className = 'road-line';
+                    line.style.left = `${laneDividerX}px`;
+                    
+                    let yPos = j * lineSpacing;
+                    line.style.top = `${yPos}px`;
+                    
+                    roadLinesContainer.appendChild(line);
+                    roadLines.push({ el: line, y: yPos, x: laneDividerX });
+                }
+            }
+        }
+
+        function resetGame() {
+            gameState = 'PLAYING';
+            distance = 0;
+            score = 0;
+            speed = 60; // รีเซ็ตความเร็วเริ่มต้นให้ช้า
+            targetSpeed = 60;
+            level = 1; // รีเซ็ตเลเวลกลับเป็น 1
+            shields = 0; // รีเซ็ตโล่
+            invincibilityTimer = 0;
+            
+            // วางตำแหน่งรถตอนเริ่มให้อยู่ตรงกลางค่อนไปทางข้างล่างจอ
+            playerX = container.clientWidth / 2 - playerWidth / 2;
+            playerY = container.clientHeight - playerHeight - 100;
+            
+            // ล้างสถานะการกดปุ่ม
+            isMovingLeft = false;
+            isMovingRight = false;
+            isMovingUp = false;
+            isMovingDown = false;
+            
+            enemiesContainer.innerHTML = '';
+            itemsContainer.innerHTML = '';
+            enemies = [];
+            items = [];
+            
+            playerEl.classList.remove('shield-active', 'invincible');
+
+            updatePlayerVisual();
+            updateHUD();
+            
+            menuScreen.classList.add('hidden');
+            pauseScreen.classList.add('hidden');
+            resultScreen.classList.add('hidden');
+            
+            lastTime = performance.now();
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        function updatePlayerVisual() {
+            playerEl.style.left = `${playerX}px`;
+            playerEl.style.top = `${playerY}px`;
+        }
+
+        // --- ระบบควบคุมใหม่ (หน้า/หลัง/ซ้าย/ขวา) ---
+        function handleKeyDown(e) {
+            if (gameState !== 'PLAYING') return;
+            if (e.key === 'ArrowLeft' || e.key === 'a') isMovingLeft = true;
+            if (e.key === 'ArrowRight' || e.key === 'd') isMovingRight = true;
+            if (e.key === 'ArrowUp' || e.key === 'w') isMovingUp = true;
+            if (e.key === 'ArrowDown' || e.key === 's') isMovingDown = true;
+            if (e.key === 'Escape') togglePause();
+        }
+
+        function handleKeyUp(e) {
+            if (e.key === 'ArrowLeft' || e.key === 'a') isMovingLeft = false;
+            if (e.key === 'ArrowRight' || e.key === 'd') isMovingRight = false;
+            if (e.key === 'ArrowUp' || e.key === 'w') isMovingUp = false;
+            if (e.key === 'ArrowDown' || e.key === 's') isMovingDown = false;
+        }
+
+        function addControlListeners(btn, dir) {
+            const startAction = (e) => {
+                e.preventDefault(); // ป้องกันจอลาก
+                if(dir === 'left') isMovingLeft = true;
+                if(dir === 'right') isMovingRight = true;
+                if(dir === 'up') isMovingUp = true;
+                if(dir === 'down') isMovingDown = true;
+            };
+            const endAction = (e) => {
+                e.preventDefault();
+                if(dir === 'left') isMovingLeft = false;
+                if(dir === 'right') isMovingRight = false;
+                if(dir === 'up') isMovingUp = false;
+                if(dir === 'down') isMovingDown = false;
+            };
+
+            btn.addEventListener('mousedown', startAction);
+            btn.addEventListener('touchstart', startAction, {passive: false});
+            btn.addEventListener('mouseup', endAction);
+            btn.addEventListener('mouseleave', endAction);
+            btn.addEventListener('touchend', endAction);
+        }
+
+        // ผูกปุ่มเข้ากับฟังก์ชัน
+        addControlListeners(btnLeft, 'left');
+        addControlListeners(btnRight, 'right');
+        addControlListeners(btnUp, 'up');
+        addControlListeners(btnDown, 'down');
+
+        // Keyboard Controls
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+
+        // UI Buttons
+        startBtn.addEventListener('click', resetGame);
+        restartBtnPause.addEventListener('click', resetGame);
+        restartBtn.addEventListener('click', resetGame);
+        
+        pauseBtnTop.addEventListener('click', togglePause);
+        resumeBtn.addEventListener('click', togglePause);
+
+        function togglePause() {
+            if (gameState === 'PLAYING') {
+                gameState = 'PAUSED';
+                pauseScreen.classList.remove('hidden');
+                cancelAnimationFrame(animationFrameId);
+            } else if (gameState === 'PAUSED') {
+                gameState = 'PLAYING';
+                pauseScreen.classList.add('hidden');
+                lastTime = performance.now();
+                animationFrameId = requestAnimationFrame(gameLoop);
+            }
+        }
+
+
+        function spawnEnemy() {
+            // Random lane 0, 1, or 2
+            const lane = Math.floor(Math.random() * LUK_LANES);
+            // Random color
+            const colorIndex = Math.floor(Math.random() * ENEMY_COLORS.length);
+            const color = ENEMY_COLORS[colorIndex];
+            
+            // Speed of enemy relative to road (usually slower than player)
+            // If enemy speed is 0, it appears to move towards player at 'speed'
+            const enemyBaseSpeed = Math.random() * 30 + 20; // Move slower than background to appear moving down
+
+            const enemyEl = document.createElement('div');
+            enemyEl.className = 'car enemy';
+            enemyEl.style.backgroundColor = color;
+            enemyEl.style.boxShadow = `0 0 10px ${color}, 0 0 20px ${color}`;
+            
+            const eX = lanePositions[lane];
+            enemyEl.style.left = `${eX - (playerWidth / 2)}px`;
+            
+            let eY = -100; // Start above screen
+            enemyEl.style.top = `${eY}px`;
+            
+            enemiesContainer.appendChild(enemyEl);
+            
+            enemies.push({
+                el: enemyEl,
+                lane: lane,
+                y: eY,
+                x: eX,
+                width: playerWidth,
+                height: playerHeight,
+                speed: enemyBaseSpeed
+            });
+        }
+
+        function spawnAmbulance() {
+            const lane = Math.floor(Math.random() * LUK_LANES);
+            const itemBaseSpeed = Math.random() * 20 + 30; // วิ่งช้าๆ ให้เก็บง่าย
+
+            const itemEl = document.createElement('div');
+            itemEl.className = 'car ambulance';
+            
+            const eX = lanePositions[lane];
+            itemEl.style.left = `${eX - (playerWidth / 2)}px`;
+            
+            let eY = -100; // Start above screen
+            itemEl.style.top = `${eY}px`;
+            
+            itemsContainer.appendChild(itemEl);
+            
+            items.push({
+                el: itemEl,
+                lane: lane,
+                y: eY,
+                x: eX,
+                width: playerWidth,
+                height: playerHeight,
+                speed: itemBaseSpeed
+            });
+        }
+
+        function gameLoop(currentTime) {
+            if (gameState !== 'PLAYING') return;
+
+            const deltaTime = (currentTime - lastTime) / 1000; // in seconds
+            lastTime = currentTime;
+
+            updateGameLogic(deltaTime);
+            drawFrame();
+
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        function updateGameLogic(dt) {
+            // เช็คและลดเวลาของสถานะอมตะ (กระพริบ)
+            if (invincibilityTimer > 0) {
+                invincibilityTimer -= dt;
+                if (invincibilityTimer <= 0) {
+                    playerEl.classList.remove('invincible');
+                }
+            }
+
+            // --- อัปเดตตำแหน่งรถผู้เล่น ---
+            if (isMovingLeft) playerX -= PLAYER_SPEED * dt;
+            if (isMovingRight) playerX += PLAYER_SPEED * dt;
+            if (isMovingUp) playerY -= PLAYER_SPEED * dt;
+            if (isMovingDown) playerY += PLAYER_SPEED * dt;
+
+            // ตรวจสอบขอบเขต (Boundaries) ไม่ให้รถออกนอกถนน หรือหลุดจอ
+            const minX = 20; // ขอบถนนซ้าย
+            const maxX = container.clientWidth - 20 - playerWidth; // ขอบถนนขวา
+            const minY = 0; // ขอบบน
+            const maxY = container.clientHeight - playerHeight; // ขอบล่าง
+
+            if (playerX < minX) playerX = minX;
+            if (playerX > maxX) playerX = maxX;
+            if (playerY < minY) playerY = minY;
+            if (playerY > maxY) playerY = maxY;
+            
+            updatePlayerVisual();
+
+            // 1. Update Speed, Level and Distance
+            
+            // ปรับเลเวลและความเร็วตามคะแนนแบบไม่มีที่สิ้นสุด
+            level = Math.floor(score / 500) + 1; // เพิ่มเลเวลทุกๆ 500 คะแนน
+            
+            // เพิ่มความเร็วตามเลเวลไปเรื่อยๆ โดยจำกัดความเร็วสูงสุดไว้ที่ MAX_SPEED (200 km/h)
+            targetSpeed = 50 + (level * 10); 
+            targetSpeed = Math.min(targetSpeed, MAX_SPEED); // จำกัดความเร็วสูงสุด
+
+            // Smooth speed interpolation
+            speed += (targetSpeed - speed) * 2 * dt;
+            
+            // Distance Calculation (Speed is KM/H, convert to KM/sec)
+            const distIncrement = (speed / 3600) * dt;
+            distance += distIncrement;
+
+            // 2. Move Road Lines (Creates illusion of speed)
+            const speedPx = speed * 8 * dt; 
+            const containerHeight = container.clientHeight;
+            
+            roadLines.forEach(line => {
+                line.y += speedPx;
+                if (line.y > containerHeight) {
+                    line.y -= (containerHeight + 80); // Reset to top
+                }
+            });
+
+            // 3. Item (Ambulance) Management
+            itemSpawnTimer += dt;
+            if (itemSpawnTimer > 15) { // รถพยาบาลมาทุกๆ 15 วินาที
+                spawnAmbulance();
+                itemSpawnTimer = 0;
+            }
+
+            for (let i = items.length - 1; i >= 0; i--) {
+                let item = items[i];
+                const relativeSpeedPx = (speed - item.speed) * 8 * dt;
+                item.y += relativeSpeedPx;
+
+                if (checkCollision(item)) {
+                    // หากเก็บรถพยาบาลได้
+                    if (shields < MAX_SHIELDS) {
+                        shields++;
+                        updateShieldVisual();
+                    }
+                    score += 50; // ได้คะแนนโบนัสเก็บไอเทม
+                    item.el.remove();
+                    items.splice(i, 1);
+                } else if (item.y > containerHeight + 100) {
+                    item.el.remove();
+                    items.splice(i, 1);
+                }
+            }
+
+            // 4. Enemy Management
+            enemySpawnTimer += dt;
+            const spawnInterval = Math.max(0.35, 2.0 - (speed / 100)); 
+            
+            if (enemySpawnTimer > spawnInterval) {
+                spawnEnemy();
+                enemySpawnTimer = 0;
+            }
+
+            // Update Enemy Positions
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                let enemy = enemies[i];
+                const relativeSpeedPx = (speed - enemy.speed) * 8 * dt;
+                enemy.y += relativeSpeedPx;
+
+                // Collision Detection
+                if (checkCollision(enemy)) {
+                    if (invincibilityTimer > 0) {
+                        // ขณะเป็นอมตะ จะทะลุผ่านไปเลย
+                    } else if (shields > 0) {
+                        // ชนแต่มีโล่กันชน
+                        shields--;
+                        updateShieldVisual();
+                        
+                        // ทำลายรถคันที่ชน
+                        enemy.el.remove();
+                        enemies.splice(i, 1);
+                        
+                        // ให้สถานะอมตะชั่วคราว 1.5 วินาที
+                        invincibilityTimer = 1.5;
+                        playerEl.classList.add('invincible');
+                        
+                        // เอฟเฟกต์หน้าจอสั่นเบาๆ
+                        container.style.transform = "translate(5px, 0)";
+                        setTimeout(() => container.style.transform = "translate(-5px, 0)", 50);
+                        setTimeout(() => container.style.transform = "translate(0, 0)", 100);
+                        continue; // ข้ามการเช็คอื่นของศัตรูคันนี้
+                    } else {
+                        // ไม่มีโล่ = เกมโอเวอร์
+                        gameOver();
+                        return;
+                    }
+                }
+
+                // Remove enemies off screen (bottom)
+                if (enemy.y > containerHeight + 100) {
+                    enemy.el.remove();
+                    enemies.splice(i, 1);
+                    score += 100; // Add bonus points for dodging a car
+                }
+            }
+
+            // Passive score over time based on driving speed
+            score += speed * dt * 0.5;
+        }
+
+        function updateShieldVisual() {
+            shieldVal.innerText = shields;
+            if (shields > 0) {
+                playerEl.classList.add('shield-active');
+            } else {
+                playerEl.classList.remove('shield-active');
+            }
+        }
+
+        function checkCollision(entity) {
+            // Player Rect (อ้างอิงจาก playerX, playerY ที่เป็นค่าสัมบูรณ์บนจอ)
+            const pX = playerX;
+            const pY = playerY; 
+            
+            // Entity Rect (Enemy หรือ Ambulance)
+            const eX = entity.x - (entity.width / 2);
+            const eY = entity.y;
+            
+            // ยอมให้รถซ้อนทับกันได้นิดหน่อยก่อนจะถือว่าชน เพื่อให้เกมไม่ตึงเกินไป
+            const tolerance = 5;
+
+            return (
+                pX < eX + entity.width - tolerance &&
+                pX + playerWidth > eX + tolerance &&
+                pY < eY + entity.height - tolerance &&
+                pY + playerHeight > eY + tolerance
+            );
+        }
+
+        function drawFrame() {
+            // Update Road Lines DOM
+            roadLines.forEach(line => {
+                line.el.style.top = `${line.y}px`;
+            });
+
+            // Update Items DOM
+            items.forEach(item => {
+                item.el.style.top = `${item.y}px`;
+            });
+
+            // Update Enemies DOM
+            enemies.forEach(enemy => {
+                enemy.el.style.top = `${enemy.y}px`;
+            });
+
+            updateHUD();
+        }
+
+        function updateHUD() {
+            // Format distance to 2 decimal places
+            distVal.innerText = distance.toFixed(2);
+            
+            // Update Score
+            scoreVal.innerText = Math.floor(score);
+
+            // Update Level
+            levelVal.innerText = level;
+
+            // Round speed
+            speedVal.innerText = Math.floor(speed);
+            
+            // Update Shield
+            shieldVal.innerText = shields;
+        }
+
+        function gameOver() {
+            gameState = 'OVER';
+            cancelAnimationFrame(animationFrameId);
+            
+            resultScreen.classList.remove('hidden');
+            newRecordMsg.classList.add('hidden');
+            
+            finalDist.innerText = distance.toFixed(2);
+            finalScore.innerText = Math.floor(score);
+            
+            // ตรวจสอบและบันทึกคะแนนลง Top 10
+            const madeTop10 = saveScore(score);
+            
+            if (madeTop10) {
+                newRecordMsg.classList.remove('hidden');
+                // หากได้อันดับ 1
+                if (highScores[0].score === Math.floor(score)) {
+                    newRecordMsg.innerText = "NEW HIGH SCORE!";
+                } else {
+                    newRecordMsg.innerText = "TOP 10 RANKING!";
+                }
+            }
+            
+            resultTitle.innerText = "BUSTED!";
+            resultTitle.className = "result-title result-busted";
+            resultMessage.innerText = "You hit the traffic!";
+            
+            // Add a little shake effect to the container
+            container.style.transform = "translate(5px, 5px)";
+            setTimeout(() => container.style.transform = "translate(-5px, -5px)", 50);
+            setTimeout(() => container.style.transform = "translate(5px, -5px)", 100);
+            setTimeout(() => container.style.transform = "translate(0, 0)", 150);
+        }
+
+        // Initialize on load
+        window.onload = async () => {
+            await initStorage(); // Setup storage and load high score
+            initGame();
+        };
+
+    </script>
+</body>
+</html>
