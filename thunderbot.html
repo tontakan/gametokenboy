@@ -1,0 +1,1745 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Thunderstorm Survival ⚡</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700;800&family=Orbitron:wght@500;700;900&display=swap');
+
+    * {
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      touch-action: none;
+    }
+
+    body {
+      font-family: 'Chakra Petch', sans-serif;
+      background-color: #030712;
+      color: #f8fafc;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    .font-digital {
+      font-family: 'Orbitron', monospace;
+    }
+
+    /* Neon Glow Effects */
+    .glow-cyan {
+      text-shadow: 0 0 10px rgba(6, 182, 212, 0.8), 0 0 20px rgba(6, 182, 212, 0.4);
+    }
+    .glow-yellow {
+      text-shadow: 0 0 10px rgba(234, 179, 8, 0.9), 0 0 22px rgba(250, 204, 21, 0.5);
+    }
+    .box-glow {
+      box-shadow: 0 0 25px rgba(6, 182, 212, 0.35), inset 0 0 15px rgba(6, 182, 212, 0.2);
+    }
+    .box-glow-danger {
+      box-shadow: 0 0 30px rgba(239, 68, 68, 0.5), inset 0 0 15px rgba(239, 68, 68, 0.3);
+    }
+
+    /* Animated Cyber Scanlines */
+    .scanlines {
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.28) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+      background-size: 100% 4px, 6px 100%;
+      pointer-events: none;
+    }
+
+    /* Modal Backdrop Blur */
+    .modal-blur {
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    /* Pulsing Storm Warning */
+    @keyframes pulseWarning {
+      0%, 100% { opacity: 0.95; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(1.05); }
+    }
+    .storm-alert {
+      animation: pulseWarning 0.8s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="flex items-center justify-center relative select-none">
+
+  <div class="relative w-full h-full max-w-lg mx-auto flex flex-col bg-slate-950 overflow-hidden shadow-2xl border-x border-cyan-900/40">
+    
+    <!-- Top HUD Bar -->
+    <header class="absolute top-0 left-0 right-0 z-20 px-3 pt-2 pb-1.5 bg-gradient-to-b from-slate-950/95 via-slate-900/80 to-transparent flex flex-col gap-1 border-b border-cyan-500/20 pointer-events-auto">
+      
+      <!-- Top Status Row -->
+      <div class="flex items-center justify-between text-xs sm:text-sm font-semibold text-slate-300">
+        
+        <!-- Health / Lives -->
+        <div class="flex items-center gap-1.5 bg-slate-900/80 px-2.5 py-1 rounded-lg border border-red-500/40">
+          <i class="fa-solid fa-heart-pulse text-red-500 text-sm animate-pulse"></i>
+          <span class="text-xs uppercase text-slate-400">ชีวิต</span>
+          <span id="hud-hp" class="font-digital text-red-400 font-bold text-sm tracking-widest">3</span>
+          <span id="hud-shield-badge" class="hidden ml-1 px-1.5 py-0.5 rounded text-[10px] font-digital font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-400 animate-pulse">
+            <i class="fa-solid fa-shield-halved"></i> เกราะ
+          </span>
+        </div>
+
+        <!-- Survived Time -->
+        <div class="flex items-center gap-1 bg-slate-900/80 px-2.5 py-1 rounded-lg border border-cyan-500/30">
+          <i class="fa-regular fa-clock text-cyan-400 text-xs"></i>
+          <span id="hud-time" class="font-digital text-cyan-300 font-bold text-sm tracking-wider">00:00.0</span>
+        </div>
+
+        <!-- Score -->
+        <div class="flex items-center gap-1.5 bg-slate-900/80 px-2.5 py-1 rounded-lg border border-amber-500/40">
+          <span class="text-xs uppercase text-slate-400">คะแนน</span>
+          <span id="hud-score" class="font-digital text-amber-400 font-bold text-sm">0</span>
+        </div>
+
+        <!-- Multiplier & Pause Button -->
+        <div class="flex items-center gap-1.5">
+          <div class="px-2 py-0.5 rounded bg-cyan-950 border border-cyan-400 font-digital text-cyan-300 text-xs font-bold">
+            <span id="hud-multiplier">x1</span>
+          </div>
+
+          <button id="btn-pause-toggle" class="w-8 h-8 rounded-lg bg-slate-800/90 border border-cyan-500/40 flex items-center justify-center text-cyan-400 active:scale-95 transition-transform" title="หยุดเกม">
+            <i class="fa-solid fa-pause text-xs"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Level & Dynamic Warning Banner -->
+      <div class="flex items-center justify-between px-1 text-[11px] font-digital">
+        <div class="flex items-center gap-1 text-slate-400">
+          <span class="text-cyan-400 font-bold">LEVEL</span>
+          <span id="hud-level" class="text-white font-black">1</span>
+        </div>
+        <div id="storm-banner" class="text-red-400 font-bold flex items-center gap-1.5 storm-alert opacity-0 transition-opacity">
+          <i class="fa-solid fa-bolt-lightning text-yellow-400"></i>
+          <span id="storm-banner-text">STORM ARISING</span>
+        </div>
+        <div class="text-[10px] text-cyan-300/70 uppercase tracking-wider">
+          SURVIVE ⚡ DODGE
+        </div>
+      </div>
+    </header>
+
+    <!-- Canvas Playfield -->
+    <canvas id="gameCanvas" class="w-full h-full block cursor-pointer"></canvas>
+
+    <!-- Scanline overlay effect -->
+    <div class="scanlines absolute inset-0 z-10 pointer-events-none"></div>
+
+    <!-- Mobile Touch Zones & Jump Button Overlay -->
+    <!-- Left touch zone for moving left, Right touch zone for moving right -->
+    <div id="touch-zone-left" class="absolute inset-y-16 left-0 w-1/2 z-10 select-none pointer-events-auto flex items-end pb-8 pl-4 opacity-30 active:opacity-75 transition-opacity">
+      <div class="flex items-center gap-1.5 text-cyan-400 font-digital text-xs tracking-wider font-bold bg-slate-900/60 px-3 py-1.5 rounded-full border border-cyan-500/30 backdrop-blur-sm pointer-events-none">
+        <i class="fa-solid fa-angles-left"></i> แตะค้างเดินซ้าย
+      </div>
+    </div>
+    
+    <div id="touch-zone-right" class="absolute inset-y-16 right-0 w-1/2 z-10 select-none pointer-events-auto flex items-end justify-end pb-8 pr-28 opacity-30 active:opacity-75 transition-opacity">
+      <div class="flex items-center gap-1.5 text-cyan-400 font-digital text-xs tracking-wider font-bold bg-slate-900/60 px-3 py-1.5 rounded-full border border-cyan-500/30 backdrop-blur-sm pointer-events-none">
+        แตะค้างเดินขวา <i class="fa-solid fa-angles-right"></i>
+      </div>
+    </div>
+
+    <!-- Only ONE Jump Button on Screen -->
+    <div class="absolute bottom-5 right-5 z-20 pointer-events-auto">
+      <button id="touch-jump" class="w-20 h-20 rounded-full bg-gradient-to-tr from-cyan-600 via-cyan-400 to-white text-slate-950 font-black shadow-[0_0_25px_rgba(6,182,212,0.6)] border-2 border-white/80 active:scale-90 active:brightness-125 transition-transform flex flex-col items-center justify-center select-none">
+        <i class="fa-solid fa-bolt text-2xl drop-shadow"></i>
+        <span class="text-[11px] font-digital tracking-widest font-extrabold mt-0.5">JUMP</span>
+      </button>
+    </div>
+
+    <!-- 1. START / MAIN MENU MODAL (With Integrated Leaderboard & Player Name) -->
+    <div id="menu-start" class="absolute inset-0 z-30 flex flex-col items-center justify-between p-4 sm:p-5 bg-slate-950/95 modal-blur overflow-y-auto">
+      <div class="w-full max-w-sm flex flex-col items-center text-center my-auto py-2">
+        
+        <!-- Electric Icon -->
+        <div class="w-14 h-14 mb-2 rounded-2xl bg-cyan-950/80 border border-cyan-400/60 flex items-center justify-center box-glow">
+          <i class="fa-solid fa-bolt-lightning text-3xl text-cyan-400 animate-pulse"></i>
+        </div>
+
+        <h1 class="text-2xl sm:text-3xl font-extrabold font-digital tracking-widest text-cyan-300 glow-cyan uppercase">
+          Thunderstorm
+        </h1>
+        <h2 class="text-base sm:text-lg font-bold tracking-widest text-yellow-400 glow-yellow mb-3">
+          SURVIVAL
+        </h2>
+
+        <!-- Player Name Input field on Home Screen -->
+        <div class="w-full bg-slate-900/90 border border-cyan-500/30 rounded-xl p-2.5 mb-3 flex items-center gap-2">
+          <span class="text-xs text-slate-400 whitespace-nowrap pl-1"><i class="fa-solid fa-user-astronaut text-cyan-400"></i> ชื่อผู้เล่น:</span>
+          <input type="text" id="player-profile-name" maxlength="15" placeholder="กรอกชื่อของคุณ..." class="flex-1 bg-slate-950 border border-slate-700 text-white text-xs font-bold rounded-lg px-2.5 py-1.5 outline-none focus:border-cyan-400" />
+        </div>
+
+        <!-- Integrated Front-Screen Leaderboard Container -->
+        <div class="w-full bg-slate-900/90 border border-slate-800 rounded-2xl p-3 mb-3 text-left flex flex-col">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+            <div class="flex items-center gap-1.5 text-amber-400 text-xs font-bold">
+              <i class="fa-solid fa-trophy"></i> ตารางอันดับ TOP 50 <span class="text-[10px] text-slate-400 font-normal">(50,000+ คะแนน)</span>
+            </div>
+            <button id="btn-refresh-start-board" class="text-[10px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1 active:scale-95 transition">
+              <i class="fa-solid fa-rotate-right"></i> รีเฟรช
+            </button>
+          </div>
+
+          <!-- Leaderboard List -->
+          <div class="overflow-y-auto max-h-[190px] min-h-[120px] my-2 pr-1 space-y-1.5" id="start-leaderboard-items">
+            <div class="text-center py-6 text-slate-500 text-xs flex flex-col items-center gap-2">
+              <i class="fa-solid fa-spinner fa-spin text-lg text-cyan-400"></i>
+              <span>กำลังโหลดอันดับผู้เล่น...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Start Button -->
+        <button id="btn-start" class="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-extrabold text-base sm:text-lg uppercase tracking-wider shadow-lg shadow-cyan-500/40 active:scale-95 transition-all flex items-center justify-center gap-2">
+          <i class="fa-solid fa-play"></i> เริ่มเกม (START)
+        </button>
+
+        <div class="mt-2.5 text-[10px] text-slate-500 font-mono">
+          แตะซ้าย/ขวาเพื่อเดิน • กด JUMP เพื่อกระโดด
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. PAUSE MENU MODAL -->
+    <div id="menu-pause" class="hidden absolute inset-0 z-30 flex flex-col items-center justify-center p-6 bg-slate-950/85 modal-blur">
+      <div class="w-full max-w-xs bg-slate-900/95 border border-cyan-500/40 rounded-3xl p-6 text-center shadow-2xl box-glow flex flex-col gap-4">
+        
+        <div class="w-14 h-14 mx-auto rounded-full bg-cyan-950/80 border border-cyan-400 flex items-center justify-center text-cyan-400 text-2xl">
+          <i class="fa-solid fa-pause"></i>
+        </div>
+
+        <div>
+          <h2 class="text-xl font-bold font-digital tracking-wider text-cyan-300">เกมหยุดชั่วคราว</h2>
+          <p class="text-xs text-slate-400 mt-1">PAUSED</p>
+        </div>
+
+        <div class="flex flex-col gap-2.5 mt-2">
+          <!-- Resume Button -->
+          <button id="btn-resume" class="w-full py-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold uppercase tracking-wider shadow-md active:scale-95 transition flex items-center justify-center gap-2">
+            <i class="fa-solid fa-play"></i> เล่นต่อ (RESUME)
+          </button>
+
+          <!-- Restart Button -->
+          <button id="btn-pause-restart" class="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white font-semibold text-sm active:scale-95 transition flex items-center justify-center gap-2">
+            <i class="fa-solid fa-rotate-left"></i> เริ่มใหม่ (RESTART)
+          </button>
+
+          <!-- Return to Title Button -->
+          <button id="btn-pause-home" class="w-full py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white text-xs active:scale-95 transition">
+            กลับเมนูหลัก (MAIN MENU)
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 3. GAME OVER MODAL -->
+    <div id="menu-gameover" class="hidden absolute inset-0 z-30 flex flex-col items-center justify-center p-6 bg-slate-950/90 modal-blur">
+      <div class="w-full max-w-sm bg-slate-900/95 border-2 border-red-500/50 rounded-3xl p-6 text-center shadow-2xl box-glow-danger flex flex-col items-center">
+        
+        <div class="w-16 h-16 rounded-full bg-red-950/80 border border-red-500 flex items-center justify-center text-red-500 text-3xl mb-3 animate-bounce">
+          <i class="fa-solid fa-skull"></i>
+        </div>
+
+        <h2 class="text-2xl font-black font-digital text-red-500 tracking-widest">GAME OVER</h2>
+        <p class="text-xs text-slate-400 mb-4">คุณถูกสายฟ้าฟาดจนพลังงานหมด!</p>
+
+        <!-- Stats Grid -->
+        <div class="w-full grid grid-cols-2 gap-2 bg-slate-950/80 border border-slate-800 p-3 rounded-2xl mb-4 text-left">
+          <div class="p-2 border-r border-slate-800">
+            <span class="text-[10px] uppercase text-slate-500 block">เวลารอดชีวิต</span>
+            <span id="final-time" class="font-digital text-cyan-300 font-bold text-sm">00:00.0</span>
+          </div>
+          <div class="p-2">
+            <span class="text-[10px] uppercase text-slate-500 block">คะแนนสุดท้าย</span>
+            <span id="final-score" class="font-digital text-amber-400 font-bold text-sm">0</span>
+          </div>
+          <div class="p-2 border-r border-t border-slate-800">
+            <span class="text-[10px] uppercase text-slate-500 block">เลเวลสูงสุด</span>
+            <span id="final-level" class="font-digital text-purple-400 font-bold text-sm">LV 1</span>
+          </div>
+          <div class="p-2 border-t border-slate-800">
+            <span class="text-[10px] uppercase text-slate-500 block">หลบสายฟ้าสูงสุด</span>
+            <span id="final-dodges" class="font-digital text-emerald-400 font-bold text-sm">0 ครั้ง</span>
+          </div>
+        </div>
+
+        <!-- Automatic Score Sync Status Banner -->
+        <div id="save-status-box" class="w-full bg-slate-950/90 border border-cyan-500/30 rounded-xl px-3 py-2.5 mb-4 text-center flex items-center justify-center gap-2">
+          <i id="save-status-icon" class="fa-solid fa-spinner fa-spin text-cyan-400 text-xs"></i>
+          <span id="save-status-msg" class="text-xs text-cyan-300 font-medium">กำลังบันทึกคะแนนอัตโนมัติ...</span>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="w-full flex flex-col gap-2">
+          <button id="btn-restart" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-red-500 to-amber-500 hover:from-red-400 hover:to-amber-400 text-slate-950 font-black uppercase tracking-wider shadow-lg active:scale-95 transition flex items-center justify-center gap-2">
+            <i class="fa-solid fa-rotate-right"></i> เล่นใหม่อีกครั้ง (RETRY)
+          </button>
+          
+          <button id="btn-over-home" class="w-full py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white text-xs font-semibold active:scale-95 transition flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-house text-cyan-400"></i> กลับเมนูหลักดูอันดับคะแนน
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const SoundFx = {
+      ctx: null,
+      muted: false,
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) {
+            this.ctx = new AudioContext();
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      },
+      // Procedural electric lightning strike zap & boom
+      playLightning() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+
+        // White noise generator for electric crackle & thunder roar
+        const bufferSize = this.ctx.sampleRate * 0.6;
+        const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          output[i] = Math.random() * 2 - 1;
+        }
+
+        const whiteNoise = this.ctx.createBufferSource();
+        whiteNoise.buffer = noiseBuffer;
+
+        // Filter for bass rumble
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(800, now);
+        filter.frequency.exponentialRampToValueAtTime(80, now + 0.5);
+
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.7, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+
+        whiteNoise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+        whiteNoise.start(now);
+
+        // High pitch snap/spark
+        const osc = this.ctx.createOscillator();
+        const oscGain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(1200, now);
+        osc.frequency.exponentialRampToValueAtTime(100, now + 0.15);
+
+        oscGain.gain.setValueAtTime(0.4, now);
+        oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+
+        osc.connect(oscGain);
+        oscGain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.16);
+      },
+      // Jump whoosh
+      playJump() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(180, now);
+        osc.frequency.exponentialRampToValueAtTime(520, now + 0.18);
+
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.linearRampToValueAtTime(0.001, now + 0.2);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.2);
+      },
+      // Dodge reward chime
+      playDodge(combo = 1) {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        const baseFreq = 440 + Math.min(combo * 60, 600);
+        osc.frequency.setValueAtTime(baseFreq, now);
+        osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.5, now + 0.15);
+
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.26);
+      },
+      // Hit sound
+      playHit() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(120, now);
+        osc.frequency.linearRampToValueAtTime(40, now + 0.25);
+
+        gain.gain.setValueAtTime(0.5, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.3);
+      },
+      // Shield pickup sound
+      playShieldPickup() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.exponentialRampToValueAtTime(880, now + 0.3);
+
+        gain.gain.setValueAtTime(0.35, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.33);
+      },
+      // Shield break/block sound
+      playShieldBreak() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(700, now);
+        osc.frequency.exponentialRampToValueAtTime(180, now + 0.25);
+
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.29);
+      }
+    };
+
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let width = 0;
+    let height = 0;
+    let dpr = window.devicePixelRatio || 1;
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      width = rect.width;
+      height = rect.height;
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      ctx.resetTransform?.();
+      ctx.scale(dpr, dpr);
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    // Jagged lightning calculation from the reference code
+    function clamp(val, min, max) {
+      return Math.max(min, Math.min(max, val));
+    }
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
+    function rand(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    // Jagged lightning generator
+    function jagged(x1, y1, x2, y2, segs, jitter) {
+      const pts = [{ x: x1, y: y1 }];
+      for (let i = 1; i < segs; i++) {
+        const t = i / segs;
+        const jx = (Math.random() - 0.5) * jitter * 2;
+        const jy = (Math.random() - 0.5) * (jitter * 0.4);
+        pts.push({
+          x: lerp(x1, x2, t) + jx,
+          y: lerp(y1, y2, t) + jy
+        });
+      }
+      pts.push({ x: x2, y: y2 });
+      return pts;
+    }
+
+    // Collision Detection: Circle vs Line segment
+    function distToSegment(px, py, x1, y1, x2, y2) {
+      const l2 = (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
+      if (l2 === 0) return Math.hypot(px - x1, py - y1);
+      let t = ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2;
+      t = clamp(t, 0, 1);
+      return Math.hypot(px - (x1 + t * (x2 - x1)), py - (y1 + t * (y2 - y1)));
+    }
+
+    const GAME_STATE = {
+      MENU: 'MENU',
+      PLAYING: 'PLAYING',
+      PAUSED: 'PAUSED',
+      GAMEOVER: 'GAMEOVER'
+    };
+
+    let currentState = GAME_STATE.MENU;
+
+    const player = {
+      x: 0,
+      y: 0,
+      radius: 12,
+      height: 48,
+      facing: 1, // 1: right, -1: left
+      walkAnimTime: 0,
+      vx: 0,
+      speed: 380,
+      jumpVy: 0,
+      gravity: 1350,
+      isGrounded: true,
+      groundY: 0,
+      jumpPower: -560,
+      invulnerableTimer: 0,
+      dodgeStreak: 0,
+      hasShield: false,
+      shieldRotation: 0,
+      trail: []
+    };
+
+    let lightningStrikes = [];
+    let telegraphs = [];
+    let shields = [];
+    let shieldSpawnTimer = 4.0;
+    let particles = [];
+    let floatingTexts = [];
+    let screenShake = 0;
+    let flashOpacity = 0;
+
+    // Game stats
+    let score = 0;
+    let lives = 3;
+    let level = 1;
+    let survivalSeconds = 0;
+    let dodgeCount = 0;
+    let multiplier = 1;
+    let strikeSpawnTimer = 1.0;
+
+    const menuStart = document.getElementById('menu-start');
+    const menuPause = document.getElementById('menu-pause');
+    const menuGameOver = document.getElementById('menu-gameover');
+
+    const hudHp = document.getElementById('hud-hp');
+    const hudShieldBadge = document.getElementById('hud-shield-badge');
+    const hudTime = document.getElementById('hud-time');
+    const hudScore = document.getElementById('hud-score');
+    const hudLevel = document.getElementById('hud-level');
+    const hudMultiplier = document.getElementById('hud-multiplier');
+    const stormBanner = document.getElementById('storm-banner');
+    const stormBannerText = document.getElementById('storm-banner-text');
+
+    const finalScore = document.getElementById('final-score');
+    const finalTime = document.getElementById('final-time');
+    const finalLevel = document.getElementById('final-level');
+    const finalDodges = document.getElementById('final-dodges');
+
+    // Connected Web App API Endpoint
+    const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbwgVtZoL09jfPccV1YbhGafW1Htwm9UNKCnu_3eLUybfM_W5iEvjanz7aDllwfdm4k6qg/exec";
+    let appsScriptUrl = DEFAULT_API_URL;
+    let currentPlayerName = localStorage.getItem('thunderstorm_player_name') || "";
+
+    const playerProfileName = document.getElementById('player-profile-name');
+    const startLeaderboardItems = document.getElementById('start-leaderboard-items');
+    const btnRefreshStartBoard = document.getElementById('btn-refresh-start-board');
+    const saveStatusBox = document.getElementById('save-status-box');
+    const saveStatusMsg = document.getElementById('save-status-msg');
+    const saveStatusIcon = document.getElementById('save-status-icon');
+
+    if (playerProfileName) {
+      if (!currentPlayerName) {
+        currentPlayerName = "Player_" + Math.floor(1000 + Math.random() * 9000);
+        localStorage.setItem('thunderstorm_player_name', currentPlayerName);
+      }
+      playerProfileName.value = currentPlayerName;
+      playerProfileName.addEventListener('input', (e) => {
+        currentPlayerName = e.target.value.trim() || "Player";
+        localStorage.setItem('thunderstorm_player_name', currentPlayerName);
+      });
+    }
+
+    btnRefreshStartBoard?.addEventListener('click', () => loadLeaderboardData());
+
+    /**
+     * ดึงข้อมูลด้วย JSONP เพื่อป้องกันปัญหา CORS / Iframe Block 100%
+     */
+    function requestJSONP(url) {
+      return new Promise((resolve, reject) => {
+        const callbackName = 'jsonp_cb_' + Math.round(100000 * Math.random()) + '_' + Date.now();
+        const script = document.createElement('script');
+        const sep = url.includes('?') ? '&' : '?';
+        script.src = `${url}${sep}callback=${callbackName}&_t=${Date.now()}`;
+
+        // ตั้งเวลาหมดเวลาเชื่อมต่อ 8 วินาที
+        const timer = setTimeout(() => {
+          cleanup();
+          reject(new Error('การเชื่อมต่อหมดเวลา (Timeout)'));
+        }, 8000);
+
+        function cleanup() {
+          clearTimeout(timer);
+          if (window[callbackName]) delete window[callbackName];
+          if (script.parentNode) script.parentNode.removeChild(script);
+        }
+
+        window[callbackName] = function (data) {
+          cleanup();
+          resolve(data);
+        };
+
+        script.onerror = function () {
+          cleanup();
+          reject(new Error('Script Load Error (อาจเกิดจากสิทธิ์การเข้าถึง)'));
+        };
+
+        document.body.appendChild(script);
+      });
+    }
+
+    async function loadLeaderboardData() {
+      startLeaderboardItems.innerHTML = `
+        <div class="text-center py-8 text-slate-500 text-xs flex flex-col items-center gap-2">
+          <i class="fa-solid fa-spinner fa-spin text-lg text-cyan-400"></i>
+          <span>กำลังโหลดอันดับผู้เล่น...</span>
+        </div>
+      `;
+
+      try {
+        // ใช้ JSONP เป็นหลักเพื่อไม่ให้ติดบล็อก CORS ใน iframe
+        const result = await requestJSONP(appsScriptUrl);
+
+        if (result && result.status === 'success' && Array.isArray(result.data)) {
+          renderLeaderboard(result.data);
+        } else {
+          throw new Error(result?.message || 'รูปแบบข้อมูลไม่ถูกต้อง');
+        }
+      } catch (err) {
+        // หาก JSONP ติด ให้ลอง fetch แบบปกติเป็นแผนสำรอง
+        try {
+          const fetchUrl = `${appsScriptUrl}${appsScriptUrl.includes('?') ? '&' : '?'}action=get&_t=${Date.now()}`;
+          const res = await fetch(fetchUrl);
+          const result = await res.json();
+          if (result.status === 'success' && Array.isArray(result.data)) {
+            renderLeaderboard(result.data);
+            return;
+          }
+        } catch (fetchErr) {}
+
+        startLeaderboardItems.innerHTML = `
+          <div class="text-center py-6 text-xs text-red-400 px-3">
+            <i class="fa-solid fa-triangle-exclamation text-base mb-1 block text-amber-400"></i>
+            <p class="font-bold">ยังไม่ได้รับสิทธิ์เข้าถึงหรือกำลังโหลดข้อมูล</p>
+            <p class="text-[10px] text-slate-400 mt-1">โปรดตรวจสอบว่าได้กด Run ฟังก์ชัน "testConnection" ใน Apps Script เพื่อกดยอมรับสิทธิ์หรือยัง</p>
+          </div>
+        `;
+      }
+    }
+
+    function renderLeaderboard(data) {
+      if (data.length === 0) {
+        startLeaderboardItems.innerHTML = `
+          <div class="text-center py-8 text-slate-500 text-xs">
+            <i class="fa-solid fa-trophy text-2xl text-slate-700 mb-1.5 block"></i>
+            ยังไม่มีคะแนนในตาราง มาเป็นคนแรกกันเถอะ!
+          </div>
+        `;
+        return;
+      }
+
+      let html = '';
+      data.forEach((item, index) => {
+        const rank = index + 1;
+        let badgeColor = 'bg-slate-800 text-slate-400 border-slate-700';
+        let rankIcon = `#${rank}`;
+
+        if (rank === 1) {
+          badgeColor = 'bg-amber-500 text-slate-950 font-black border-amber-300 shadow-sm shadow-amber-500/30';
+          rankIcon = '🥇 1';
+        } else if (rank === 2) {
+          badgeColor = 'bg-slate-300 text-slate-950 font-black border-white';
+          rankIcon = '🥈 2';
+        } else if (rank === 3) {
+          badgeColor = 'bg-amber-700 text-amber-100 font-black border-amber-500';
+          rankIcon = '🥉 3';
+        }
+
+        html += `
+          <div class="flex items-center justify-between p-2 rounded-xl bg-slate-950/70 border border-slate-800/80 hover:border-cyan-500/30 transition">
+            <div class="flex items-center gap-2 overflow-hidden">
+              <span class="w-9 h-5 rounded flex items-center justify-center text-[10px] font-digital ${badgeColor}">
+                ${rankIcon}
+              </span>
+              <div class="truncate">
+                <div class="text-xs font-bold text-white truncate">${escapeHtml(item.name)}</div>
+                <div class="text-[10px] text-slate-400 font-digital flex gap-2">
+                  <span class="text-cyan-400">LV ${item.level || 1}</span>
+                  <span>⏱ ${item.time || '00:00'}</span>
+                  <span class="text-emerald-400">⚡ ${item.dodges || 0}</span>
+                </div>
+              </div>
+            </div>
+            <div class="text-right pl-2">
+              <span class="font-digital text-amber-400 font-bold text-xs tracking-wide">
+                ${Number(item.score).toLocaleString()}
+              </span>
+            </div>
+          </div>
+        `;
+      });
+
+      startLeaderboardItems.innerHTML = html;
+    }
+
+    function escapeHtml(str) {
+      if (!str) return 'Anonymous';
+      return String(str).replace(/[&<>"']/g, m => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      })[m]);
+    }
+
+    async function autoSaveScore() {
+      const finalScoreNum = Math.floor(score);
+      const name = (playerProfileName?.value.trim()) || currentPlayerName || 'Survivor';
+
+      // ตรวจสอบเงื่อนไขคะแนน: ต้องได้ 50,000 คะแนนขึ้นไปจึงจะบันทึก
+      if (finalScoreNum < 50000) {
+        saveStatusBox.className = "w-full bg-slate-950/90 border border-amber-500/40 rounded-xl px-3 py-2.5 mb-4 text-center flex items-center justify-center gap-1.5 text-xs text-amber-300";
+        saveStatusIcon.className = "fa-solid fa-circle-info text-amber-400 text-xs";
+        saveStatusMsg.textContent = `คะแนน ${finalScoreNum.toLocaleString()} (บันทึกเฉพาะ 50,000+ ขึ้นไป)`;
+        return;
+      }
+
+      saveStatusBox.className = "w-full bg-slate-950/90 border border-cyan-500/30 rounded-xl px-3 py-2 mb-4 text-center flex items-center justify-center gap-1.5 text-xs text-cyan-300";
+      saveStatusIcon.className = "fa-solid fa-spinner fa-spin text-cyan-400 text-xs";
+      saveStatusMsg.textContent = "คะแนนผ่านเกณฑ์! กำลังบันทึกอันดับ...";
+
+      const saveParams = `action=save&name=${encodeURIComponent(name)}&score=${finalScoreNum}&time=${encodeURIComponent(formatTime(survivalSeconds))}&level=${level}&dodges=${dodgeCount}`;
+      const saveUrl = `${appsScriptUrl}${appsScriptUrl.includes('?') ? '&' : '?'}${saveParams}`;
+
+      try {
+        // ส่งบันทึกคะแนนผ่าน JSONP
+        const res = await requestJSONP(saveUrl);
+        
+        if (res && res.status === 'ignored') {
+          saveStatusBox.className = "w-full bg-slate-950/90 border border-amber-500/40 rounded-xl px-3 py-2 mb-4 text-center flex items-center justify-center gap-1.5 text-xs text-amber-300";
+          saveStatusIcon.className = "fa-solid fa-circle-info text-amber-400 text-xs";
+          saveStatusMsg.textContent = res.message;
+          return;
+        }
+
+        saveStatusBox.className = "w-full bg-slate-950/90 border border-emerald-500/40 rounded-xl px-3 py-2 mb-4 text-center flex items-center justify-center gap-1.5 text-xs text-emerald-300";
+        saveStatusIcon.className = "fa-solid fa-circle-check text-emerald-400 text-xs";
+        saveStatusMsg.textContent = "✓ บันทึกอันดับ TOP 50 เรียบร้อยแล้ว!";
+        
+        setTimeout(() => loadLeaderboardData(), 800);
+      } catch (e) {
+        // แผนสำรองส่งผ่าน Image Ping
+        const img = new Image();
+        img.src = `${saveUrl}&_mode=ping&_t=${Date.now()}`;
+
+        saveStatusBox.className = "w-full bg-slate-950/90 border border-emerald-500/40 rounded-xl px-3 py-2 mb-4 text-center flex items-center justify-center gap-1.5 text-xs text-emerald-300";
+        saveStatusIcon.className = "fa-solid fa-circle-check text-emerald-400 text-xs";
+        saveStatusMsg.textContent = "✓ ส่งคะแนนเข้าสู่ระบบเรียบร้อยแล้ว!";
+
+        setTimeout(() => loadLeaderboardData(), 1200);
+      }
+    }
+
+    const btnStart = document.getElementById('btn-start');
+    const btnPauseToggle = document.getElementById('btn-pause-toggle');
+    const btnResume = document.getElementById('btn-resume');
+    const btnPauseRestart = document.getElementById('btn-pause-restart');
+    const btnPauseHome = document.getElementById('btn-pause-home');
+    const btnRestart = document.getElementById('btn-restart');
+    const btnOverHome = document.getElementById('btn-over-home');
+
+    // Touch control elements
+    const touchZoneLeft = document.getElementById('touch-zone-left');
+    const touchZoneRight = document.getElementById('touch-zone-right');
+    const btnTouchJump = document.getElementById('touch-jump');
+
+    const input = {
+      left: false,
+      right: false,
+      jump: false
+    };
+
+    // Multi-touch tracking on screen halves
+    const activeTouches = new Map();
+
+    function updateTouchDirections() {
+      let wantLeft = false;
+      let wantRight = false;
+      const midX = width / 2;
+
+      for (const touch of activeTouches.values()) {
+        if (touch.x < midX) {
+          wantLeft = true;
+        } else {
+          wantRight = true;
+        }
+      }
+
+      input.left = wantLeft;
+      input.right = wantRight;
+    }
+
+    function handleScreenTouchStart(e) {
+      if (currentState !== GAME_STATE.PLAYING) return;
+      SoundFx.init();
+      const rect = canvas.getBoundingClientRect();
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const t = e.changedTouches[i];
+        activeTouches.set(t.identifier, {
+          x: t.clientX - rect.left,
+          y: t.clientY - rect.top
+        });
+      }
+      updateTouchDirections();
+    }
+
+    function handleScreenTouchMove(e) {
+      if (currentState !== GAME_STATE.PLAYING) return;
+      const rect = canvas.getBoundingClientRect();
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const t = e.changedTouches[i];
+        if (activeTouches.has(t.identifier)) {
+          activeTouches.set(t.identifier, {
+            x: t.clientX - rect.left,
+            y: t.clientY - rect.top
+          });
+        }
+      }
+      updateTouchDirections();
+    }
+
+    function handleScreenTouchEnd(e) {
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const t = e.changedTouches[i];
+        activeTouches.delete(t.identifier);
+      }
+      updateTouchDirections();
+    }
+
+    // Attach touch listeners to touch zones and canvas
+    [touchZoneLeft, touchZoneRight, canvas].forEach(elem => {
+      elem.addEventListener('touchstart', handleScreenTouchStart, { passive: true });
+      elem.addEventListener('touchmove', handleScreenTouchMove, { passive: true });
+      elem.addEventListener('touchend', handleScreenTouchEnd, { passive: true });
+      elem.addEventListener('touchcancel', handleScreenTouchEnd, { passive: true });
+    });
+
+    // Jump button listener
+    btnTouchJump.addEventListener('touchstart', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      SoundFx.init();
+      tryJump();
+    }, { passive: false });
+
+    btnTouchJump.addEventListener('mousedown', (e) => {
+      e.stopPropagation();
+      SoundFx.init();
+      tryJump();
+    });
+
+    function formatTime(secs) {
+      const m = Math.floor(secs / 60);
+      const s = Math.floor(secs % 60);
+      const ms = Math.floor((secs % 1) * 10);
+      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${ms}`;
+    }
+
+    function updateHUD() {
+      hudHp.textContent = lives;
+      if (player.hasShield) {
+        hudShieldBadge.classList.remove('hidden');
+      } else {
+        hudShieldBadge.classList.add('hidden');
+      }
+      hudScore.textContent = Math.floor(score);
+      hudTime.textContent = formatTime(survivalSeconds);
+      hudLevel.textContent = level;
+      hudMultiplier.textContent = `x${multiplier}`;
+    }
+
+    function showBanner(text, duration = 1.6) {
+      stormBannerText.textContent = text;
+      stormBanner.classList.remove('opacity-0');
+      stormBanner.classList.add('opacity-100');
+      clearTimeout(showBanner._timeout);
+      showBanner._timeout = setTimeout(() => {
+        stormBanner.classList.remove('opacity-100');
+        stormBanner.classList.add('opacity-0');
+      }, duration * 1000);
+    }
+
+    function resetGame() {
+      resizeCanvas();
+      player.groundY = height - 70;
+      player.x = width / 2;
+      player.y = player.groundY;
+      player.vx = 0;
+      player.facing = 1;
+      player.walkAnimTime = 0;
+      player.jumpVy = 0;
+      player.isGrounded = true;
+      player.invulnerableTimer = 0;
+      player.dodgeStreak = 0;
+      player.hasShield = false;
+      player.shieldRotation = 0;
+      player.trail = [];
+      activeTouches.clear();
+      input.left = false;
+      input.right = false;
+      input.jump = false;
+
+      lightningStrikes = [];
+      telegraphs = [];
+      shields = [];
+      shieldSpawnTimer = 4.0;
+      particles = [];
+      floatingTexts = [];
+      screenShake = 0;
+      flashOpacity = 0;
+
+      score = 0;
+      lives = 3;
+      level = 1;
+      survivalSeconds = 0;
+      dodgeCount = 0;
+      multiplier = 1;
+      strikeSpawnTimer = 0.8;
+
+      updateHUD();
+    }
+
+    function startGame() {
+      SoundFx.init();
+      resetGame();
+      currentState = GAME_STATE.PLAYING;
+      menuStart.classList.add('hidden');
+      menuPause.classList.add('hidden');
+      menuGameOver.classList.add('hidden');
+      showBanner("STORM ARISING", 1.8);
+    }
+
+    function pauseGame() {
+      if (currentState !== GAME_STATE.PLAYING) return;
+      currentState = GAME_STATE.PAUSED;
+      menuPause.classList.remove('hidden');
+    }
+
+    function resumeGame() {
+      if (currentState !== GAME_STATE.PAUSED) return;
+      SoundFx.init();
+      currentState = GAME_STATE.PLAYING;
+      menuPause.classList.add('hidden');
+      lastTime = performance.now();
+    }
+
+    function gameOver() {
+      currentState = GAME_STATE.GAMEOVER;
+      finalScore.textContent = Math.floor(score);
+      finalTime.textContent = formatTime(survivalSeconds);
+      finalLevel.textContent = `LV ${level}`;
+      finalDodges.textContent = `${dodgeCount} ครั้ง`;
+
+      menuGameOver.classList.remove('hidden');
+
+      // Auto save score immediately on game over
+      autoSaveScore();
+    }
+
+    function returnToMainMenu() {
+      currentState = GAME_STATE.MENU;
+      menuPause.classList.add('hidden');
+      menuGameOver.classList.add('hidden');
+      menuStart.classList.remove('hidden');
+      loadLeaderboardData(); // Reload latest scores when returning
+    }
+
+    // Event Listeners for Buttons
+    btnStart.addEventListener('click', startGame);
+    btnPauseToggle.addEventListener('click', () => {
+      if (currentState === GAME_STATE.PLAYING) pauseGame();
+      else if (currentState === GAME_STATE.PAUSED) resumeGame();
+    });
+    btnResume.addEventListener('click', resumeGame);
+    btnPauseRestart.addEventListener('click', startGame);
+    btnPauseHome.addEventListener('click', returnToMainMenu);
+    btnRestart.addEventListener('click', startGame);
+    btnOverHome.addEventListener('click', returnToMainMenu);
+
+    // Keyboard support
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'KeyA' || e.key === 'ArrowLeft') input.left = true;
+      if (e.code === 'KeyD' || e.key === 'ArrowRight') input.right = true;
+      if (e.code === 'KeyW' || e.code === 'Space' || e.key === 'ArrowUp') {
+        input.jump = true;
+        tryJump();
+      }
+      if (e.key === 'Escape' || e.code === 'KeyP') {
+        if (currentState === GAME_STATE.PLAYING) pauseGame();
+        else if (currentState === GAME_STATE.PAUSED) resumeGame();
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (e.code === 'KeyA' || e.key === 'ArrowLeft') input.left = false;
+      if (e.code === 'KeyD' || e.key === 'ArrowRight') input.right = false;
+      if (e.code === 'KeyW' || e.code === 'Space' || e.key === 'ArrowUp') input.jump = false;
+    });
+
+    function tryJump() {
+      if (currentState !== GAME_STATE.PLAYING) return;
+      if (player.isGrounded) {
+        player.jumpVy = player.jumpPower;
+        player.isGrounded = false;
+        SoundFx.playJump();
+        // Jump puff sparks
+        createSparks(player.x, player.groundY, '#38bdf8', 12);
+      }
+    }
+
+    function createSparks(x, y, color = '#67e8f9', count = 12) {
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const spd = rand(60, 260);
+        particles.push({
+          x,
+          y,
+          vx: Math.cos(angle) * spd,
+          vy: Math.sin(angle) * spd,
+          life: rand(0.3, 0.7),
+          maxLife: 0.7,
+          radius: rand(1.5, 3.5),
+          color
+        });
+      }
+    }
+
+    function addFloatingText(text, x, y, color = '#38bdf8') {
+      floatingTexts.push({
+        text,
+        x,
+        y,
+        life: 1.0,
+        maxLife: 1.0,
+        color
+      });
+    }
+
+    function spawnTelegraph() {
+      // Pick strike location (often near player to challenge dodging)
+      let targetX;
+      if (Math.random() < 0.65) {
+        // Bias near player
+        targetX = clamp(player.x + rand(-110, 110), 30, width - 30);
+      } else {
+        targetX = rand(30, width - 30);
+      }
+
+      const telegraphDuration = Math.max(0.65, 1.4 - level * 0.08);
+
+      telegraphs.push({
+        x: targetX,
+        timer: telegraphDuration,
+        maxTime: telegraphDuration,
+        width: rand(24, 38)
+      });
+    }
+
+    function executeLightningStrike(targetX, strikeWidth) {
+      SoundFx.playLightning();
+      screenShake = 12;
+      flashOpacity = 0.45;
+
+      const segments = 14;
+      const jitter = rand(15, 26);
+      const boltPts = jagged(targetX + rand(-15, 15), 0, targetX, player.groundY + 12, segments, jitter);
+
+      // Create branch lightning
+      const branchPts = [];
+      if (Math.random() < 0.75) {
+        const branchStartIdx = Math.floor(rand(3, 8));
+        const startPt = boltPts[branchStartIdx];
+        const branchEnd = {
+          x: startPt.x + rand(-60, 60),
+          y: startPt.y + rand(80, 160)
+        };
+        branchPts.push(...jagged(startPt.x, startPt.y, branchEnd.x, branchEnd.y, 6, 12));
+      }
+
+      const strike = {
+        x: targetX,
+        width: strikeWidth,
+        pts: boltPts,
+        branchPts,
+        life: 0.28,
+        damageDealt: false,
+        dodgedRewarded: false
+      };
+
+      lightningStrikes.push(strike);
+
+      // Impact ground blast particles
+      createSparks(targetX, player.groundY + 12, '#38bdf8', 25);
+      createSparks(targetX, player.groundY + 12, '#fef08a', 15);
+    }
+
+    let lastTime = performance.now();
+
+    function updateGame(dt) {
+      if (currentState !== GAME_STATE.PLAYING) return;
+
+      survivalSeconds += dt;
+      score += dt * 10 * multiplier;
+
+      // Dynamic Leveling Up
+      const targetLevel = 1 + Math.floor(survivalSeconds / 15);
+      if (targetLevel > level) {
+        level = targetLevel;
+        showBanner(`LEVEL ${level}`, 2.0);
+        multiplier = Math.min(5, multiplier + 1);
+        addFloatingText(`LEVEL UP! LV${level}`, width / 2, height * 0.35, '#c084fc');
+        if (level === 10) {
+          showBanner("⚡ SHIELD DROPS UNLOCKED ⚡", 2.2);
+          addFloatingText("SHIELDS UNLOCKED!", width / 2, height * 0.42, '#38bdf8');
+        }
+      }
+
+      // Player Movement
+      player.groundY = height - 70;
+      let moveDir = 0;
+      if (input.left) moveDir -= 1;
+      if (input.right) moveDir += 1;
+
+      player.vx = moveDir * player.speed;
+      player.x += player.vx * dt;
+      player.x = clamp(player.x, 20, width - 20);
+
+      if (moveDir !== 0) {
+        player.facing = moveDir;
+        player.walkAnimTime += dt * 14;
+      } else {
+        player.walkAnimTime = 0;
+      }
+
+      // Rotate active shield animation
+      if (player.hasShield) {
+        player.shieldRotation += dt * 2.5;
+      }
+
+      // Gravity and jump physics
+      if (!player.isGrounded) {
+        player.jumpVy += player.gravity * dt;
+        player.y += player.jumpVy * dt;
+
+        if (player.y >= player.groundY) {
+          player.y = player.groundY;
+          player.jumpVy = 0;
+          player.isGrounded = true;
+        }
+      } else {
+        player.y = player.groundY;
+      }
+
+      // Invulnerability blink timer
+      if (player.invulnerableTimer > 0) {
+        player.invulnerableTimer -= dt;
+      }
+
+      // Player movement trail
+      player.trail.unshift({ x: player.x, y: player.y, facing: player.facing, alpha: 0.5 });
+      if (player.trail.length > 6) player.trail.pop();
+
+      // Screen shake decay
+      if (screenShake > 0) {
+        screenShake = Math.max(0, screenShake - dt * 25);
+      }
+      if (flashOpacity > 0) {
+        flashOpacity = Math.max(0, flashOpacity - dt * 2);
+      }
+
+      // Spawning telegraph warnings
+      strikeSpawnTimer -= dt;
+      if (strikeSpawnTimer <= 0) {
+        spawnTelegraph();
+        // Occasional double telegraph in higher levels
+        if (level >= 3 && Math.random() < 0.45) {
+          setTimeout(spawnTelegraph, 250);
+        }
+        const interval = Math.max(0.7, 2.2 - level * 0.16);
+        strikeSpawnTimer = rand(interval * 0.7, interval * 1.1);
+      }
+
+      // Spawning Shield items from sky (Only when Level >= 10)
+      if (level >= 10) {
+        shieldSpawnTimer -= dt;
+        if (shieldSpawnTimer <= 0) {
+          shields.push({
+            x: rand(35, width - 35),
+            y: -10,
+            vy: rand(170, 240),
+            radius: 14,
+            pulse: 0
+          });
+          // Next shield drop in 9-16 seconds
+          shieldSpawnTimer = rand(9.0, 16.0);
+        }
+      }
+
+      // Update Falling Shields (Must catch before hitting the ground)
+      const groundTargetY = player.groundY + 8;
+      for (let i = shields.length - 1; i >= 0; i--) {
+        const s = shields[i];
+        s.y += s.vy * dt;
+        s.pulse += dt * 5;
+
+        // Check if player catches the shield
+        const playerCenterY = player.y - 20;
+        const distToPlayer = Math.hypot(player.x - s.x, playerCenterY - s.y);
+        if (distToPlayer < player.radius + s.radius + 10) {
+          player.hasShield = true;
+          SoundFx.playShieldPickup();
+          createSparks(s.x, s.y, '#38bdf8', 25);
+          createSparks(s.x, s.y, '#67e8f9', 20);
+          addFloatingText("SHIELD READY! 🛡", player.x, player.y - 45, '#38bdf8');
+          showBanner("SHIELD ACTIVE", 1.2);
+          shields.splice(i, 1);
+          continue;
+        }
+
+        // If shield hits the ground, it disappears immediately
+        if (s.y >= groundTargetY) {
+          createSparks(s.x, groundTargetY, '#64748b', 12);
+          addFloatingText("MISSED!", s.x, groundTargetY - 15, '#94a3b8');
+          shields.splice(i, 1);
+        }
+      }
+
+      // Update Telegraphs
+      for (let i = telegraphs.length - 1; i >= 0; i--) {
+        const t = telegraphs[i];
+        t.timer -= dt;
+        if (t.timer <= 0) {
+          executeLightningStrike(t.x, t.width);
+          telegraphs.splice(i, 1);
+        }
+      }
+
+      // Update Strikes & Collision Detection
+      for (let i = lightningStrikes.length - 1; i >= 0; i--) {
+        const strike = lightningStrikes[i];
+        strike.life -= dt;
+
+        // Check Collision with player
+        if (!strike.damageDealt) {
+          let hit = false;
+          // Check collision against all segments of lightning bolt
+          for (let s = 0; s < strike.pts.length - 1; s++) {
+            const p1 = strike.pts[s];
+            const p2 = strike.pts[s + 1];
+            const d = distToSegment(player.x, player.y, p1.x, p1.y, p2.x, p2.y);
+            if (d < player.radius + strike.width * 0.35) {
+              hit = true;
+              break;
+            }
+          }
+
+          if (hit) {
+            strike.damageDealt = true;
+
+            // If player has shield equipped, absorb the strike completely!
+            if (player.hasShield) {
+              player.hasShield = false;
+              player.invulnerableTimer = 1.0;
+              screenShake = 15;
+              SoundFx.playShieldBreak();
+              createSparks(player.x, player.y - 20, '#38bdf8', 35);
+              createSparks(player.x, player.y - 20, '#f8fafc', 20);
+              addFloatingText("SHIELD BLOCKED! ⚡🛡", player.x, player.y - 30, '#38bdf8');
+              showBanner("SHIELD BROKEN", 1.2);
+            } else if (player.invulnerableTimer <= 0) {
+              lives--;
+              SoundFx.playHit();
+              player.invulnerableTimer = 1.3;
+              player.dodgeStreak = 0;
+              multiplier = 1;
+              screenShake = 20;
+              createSparks(player.x, player.y, '#ef4444', 30);
+              addFloatingText("HIT! -1 HP", player.x, player.y - 20, '#ef4444');
+
+              if (lives <= 0) {
+                gameOver();
+                return;
+              }
+            }
+          } else if (!strike.dodgedRewarded) {
+            // Check Near-Miss for "DODGE" combo
+            const distX = Math.abs(player.x - strike.x);
+            // Close enough to count as daring dodge
+            if (distX < 85 && distX > player.radius + 12) {
+              strike.dodgedRewarded = true;
+              dodgeCount++;
+              player.dodgeStreak++;
+              multiplier = Math.min(8, 1 + Math.floor(player.dodgeStreak / 2));
+              score += 50 * multiplier;
+              SoundFx.playDodge(player.dodgeStreak);
+              showBanner(`DODGE x${player.dodgeStreak}`, 1.2);
+              addFloatingText(`DODGE x${player.dodgeStreak}! +${50 * multiplier}`, player.x, player.y - 30, '#38bdf8');
+            }
+          }
+        }
+
+        if (strike.life <= 0) {
+          lightningStrikes.splice(i, 1);
+        }
+      }
+
+      // Update Particles
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.life -= dt;
+        if (p.life <= 0) {
+          particles.splice(i, 1);
+        }
+      }
+
+      // Update Floating Texts
+      for (let i = floatingTexts.length - 1; i >= 0; i--) {
+        const ft = floatingTexts[i];
+        ft.y -= 38 * dt;
+        ft.life -= dt;
+        if (ft.life <= 0) {
+          floatingTexts.splice(i, 1);
+        }
+      }
+
+      updateHUD();
+    }
+
+    function drawGame() {
+      ctx.save();
+
+      // Screen Shake
+      if (screenShake > 0) {
+        const sx = (Math.random() - 0.5) * screenShake;
+        const sy = (Math.random() - 0.5) * screenShake;
+        ctx.translate(sx, sy);
+      }
+
+      // Dark sci-fi gradient background
+      const bgGrad = ctx.createLinearGradient(0, 0, 0, height);
+      bgGrad.addColorStop(0, '#020617');
+      bgGrad.addColorStop(0.65, '#07162c');
+      bgGrad.addColorStop(1, '#020b18');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, width, height);
+
+      // Render 3D Perspective Retro Grid Floor
+      const groundY = player.groundY + 12;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(6, 182, 212, 0.2)';
+      ctx.lineWidth = 1;
+
+      // Horizontal grid lines
+      for (let y = groundY; y < height; y += 14) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+      }
+
+      // Perspective vertical grid lines
+      const vanishingX = width / 2;
+      const vanishingY = groundY - 140;
+      for (let x = -width; x < width * 2; x += 36) {
+        ctx.beginPath();
+        ctx.moveTo(vanishingX, vanishingY);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+      }
+
+      // Ground horizon line with bright neon glow
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
+      ctx.lineWidth = 2.5;
+      ctx.shadowColor = '#38bdf8';
+      ctx.shadowBlur = 12;
+      ctx.moveTo(0, groundY);
+      ctx.lineTo(width, groundY);
+      ctx.stroke();
+      ctx.restore();
+
+      // Atmospheric Clouds Glow at Top
+      const cloudGrad = ctx.createRadialGradient(width / 2, -20, 10, width / 2, 80, width * 0.7);
+      cloudGrad.addColorStop(0, 'rgba(30, 58, 138, 0.5)');
+      cloudGrad.addColorStop(1, 'rgba(2, 6, 23, 0)');
+      ctx.fillStyle = cloudGrad;
+      ctx.fillRect(0, 0, width, 180);
+
+      // Draw Telegraph Warning Beams
+      telegraphs.forEach((t) => {
+        const progress = 1 - t.timer / t.maxTime;
+        const beamAlpha = 0.25 + progress * 0.65;
+        const pulseWidth = t.width * (0.8 + Math.sin(progress * Math.PI * 6) * 0.2);
+
+        // Warning vertical column
+        ctx.save();
+        ctx.fillStyle = `rgba(239, 68, 68, ${beamAlpha * 0.25})`;
+        ctx.fillRect(t.x - pulseWidth / 2, 0, pulseWidth, groundY);
+
+        // Core laser indicator line
+        ctx.strokeStyle = `rgba(248, 113, 113, ${beamAlpha})`;
+        ctx.lineWidth = 2 + progress * 3;
+        ctx.shadowColor = '#ef4444';
+        ctx.shadowBlur = 14;
+        ctx.beginPath();
+        ctx.moveTo(t.x, 0);
+        ctx.lineTo(t.x, groundY);
+        ctx.stroke();
+
+        // Target Reticle on Ground
+        ctx.beginPath();
+        ctx.arc(t.x, groundY, pulseWidth * 0.7, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(254, 240, 138, ${beamAlpha * 1.2})`;
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        // Warning exclamation icon
+        ctx.fillStyle = '#ef4444';
+        ctx.font = 'bold 13px Orbitron';
+        ctx.textAlign = 'center';
+        ctx.fillText('⚠ DANGER', t.x, groundY - 25);
+        ctx.restore();
+      });
+
+      // Draw Lightning Bolts
+      lightningStrikes.forEach((strike) => {
+        ctx.save();
+        const lifeFactor = strike.life / 0.28;
+
+        // Outer glow bolt
+        ctx.beginPath();
+        strike.pts.forEach((pt, idx) => {
+          if (idx === 0) ctx.moveTo(pt.x, pt.y);
+          else ctx.lineTo(pt.x, pt.y);
+        });
+        ctx.strokeStyle = `rgba(56, 189, 248, ${lifeFactor * 0.9})`;
+        ctx.lineWidth = strike.width * 1.4;
+        ctx.shadowColor = '#38bdf8';
+        ctx.shadowBlur = 24;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'bevel';
+        ctx.stroke();
+
+        // Core white-hot electrical bolt
+        ctx.beginPath();
+        strike.pts.forEach((pt, idx) => {
+          if (idx === 0) ctx.moveTo(pt.x, pt.y);
+          else ctx.lineTo(pt.x, pt.y);
+        });
+        ctx.strokeStyle = `rgba(255, 255, 255, ${lifeFactor})`;
+        ctx.lineWidth = strike.width * 0.45;
+        ctx.stroke();
+
+        // Branching sparks
+        if (strike.branchPts.length > 0) {
+          ctx.beginPath();
+          strike.branchPts.forEach((pt, idx) => {
+            if (idx === 0) ctx.moveTo(pt.x, pt.y);
+            else ctx.lineTo(pt.x, pt.y);
+          });
+          ctx.strokeStyle = `rgba(147, 197, 253, ${lifeFactor * 0.7})`;
+          ctx.lineWidth = strike.width * 0.25;
+          ctx.stroke();
+        }
+
+        ctx.restore();
+      });
+
+      // Draw Falling Shields (Level 10+)
+      shields.forEach((s) => {
+        ctx.save();
+        ctx.translate(s.x, s.y);
+
+        // Falling trail / beacon
+        ctx.beginPath();
+        ctx.moveTo(0, -18);
+        ctx.lineTo(0, 0);
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.5)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Pulsing glow aura
+        const pulseScale = 1 + Math.sin(s.pulse) * 0.15;
+        ctx.shadowColor = '#38bdf8';
+        ctx.shadowBlur = 18;
+
+        // Outer hexagon / shield ring
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const angle = (i * Math.PI) / 3 + s.pulse * 0.5;
+          const px = Math.cos(angle) * (s.radius * pulseScale);
+          const py = Math.sin(angle) * (s.radius * pulseScale);
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(6, 182, 212, 0.35)';
+        ctx.fill();
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        // Core shield icon
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 13px "Font Awesome 6 Free"';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('\uf3ed', 0, 0); // fa-shield-halved unicode
+
+        // Alert arrow pointing down
+        ctx.fillStyle = '#fef08a';
+        ctx.font = 'bold 9px Orbitron';
+        ctx.fillText('CATCH!', 0, -s.radius - 8);
+        ctx.restore();
+      });
+
+      // Render Stickman Character (as seen in video)
+      function drawStickman(x, y, facing, walkTime, isAir, alpha = 1.0, isTrail = false) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(facing, 1);
+        ctx.globalAlpha = alpha;
+
+        const mainColor = isTrail ? 'rgba(56, 189, 248, 0.4)' : '#ffffff';
+        ctx.strokeStyle = mainColor;
+        ctx.fillStyle = mainColor;
+        ctx.lineWidth = 3.5;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        if (!isTrail) {
+          ctx.shadowColor = '#38bdf8';
+          ctx.shadowBlur = 12;
+        }
+
+        // Head (Circle)
+        const headRadius = 7;
+        const headY = -38;
+        ctx.beginPath();
+        ctx.arc(0, headY, headRadius, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Torso
+        const neckY = headY + headRadius;
+        const pelvisY = -16;
+        ctx.beginPath();
+        ctx.moveTo(0, neckY);
+        ctx.lineTo(0, pelvisY);
+        ctx.stroke();
+
+        // Shoulders / Arms
+        const shoulderY = neckY + 4;
+        let armAngle1 = 0;
+        let armAngle2 = 0;
+        let legAngle1 = 0;
+        let legAngle2 = 0;
+
+        if (isAir) {
+          // Jump pose: arms up/out, legs bent tucked
+          armAngle1 = -0.9;
+          armAngle2 = -0.5;
+          legAngle1 = 0.6;
+          legAngle2 = -0.5;
+        } else if (walkTime > 0) {
+          // Running swing cycle
+          const swing = Math.sin(walkTime);
+          armAngle1 = swing * 0.9;
+          armAngle2 = -swing * 0.9;
+          legAngle1 = -swing * 0.8;
+          legAngle2 = swing * 0.8;
+        } else {
+          // Idle pose
+          armAngle1 = 0.2;
+          armAngle2 = -0.1;
+          legAngle1 = 0.15;
+          legAngle2 = -0.15;
+        }
+
+        // Arm 1 (Back)
+        ctx.beginPath();
+        ctx.moveTo(0, shoulderY);
+        ctx.lineTo(Math.sin(armAngle1) * 12, shoulderY + Math.cos(armAngle1) * 12);
+        ctx.stroke();
+
+        // Arm 2 (Front)
+        ctx.beginPath();
+        ctx.moveTo(0, shoulderY);
+        ctx.lineTo(Math.sin(armAngle2) * 12, shoulderY + Math.cos(armAngle2) * 12);
+        ctx.stroke();
+
+        // Leg 1
+        ctx.beginPath();
+        ctx.moveTo(0, pelvisY);
+        const knee1X = Math.sin(legAngle1) * 9;
+        const knee1Y = pelvisY + Math.cos(legAngle1) * 9;
+        ctx.lineTo(knee1X, knee1Y);
+        ctx.lineTo(knee1X + Math.sin(legAngle1 * 1.2) * 8, knee1Y + Math.cos(legAngle1 * 1.2) * 8);
+        ctx.stroke();
+
+        // Leg 2
+        ctx.beginPath();
+        ctx.moveTo(0, pelvisY);
+        const knee2X = Math.sin(legAngle2) * 9;
+        const knee2Y = pelvisY + Math.cos(legAngle2) * 9;
+        ctx.lineTo(knee2X, knee2Y);
+        ctx.lineTo(knee2X + Math.sin(legAngle2 * 1.2) * 8, knee2Y + Math.cos(legAngle2 * 1.2) * 8);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      // Draw Active Energy Barrier / Shield around Stickman
+      if (player.hasShield && (player.invulnerableTimer <= 0 || Math.floor(player.invulnerableTimer * 12) % 2 === 0)) {
+        ctx.save();
+        ctx.translate(player.x, player.y - 20);
+        ctx.shadowColor = '#06b6d4';
+        ctx.shadowBlur = 18;
+
+        // Protective spherical aura
+        ctx.beginPath();
+        ctx.arc(0, 0, 32, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(6, 182, 212, 0.16)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.85)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([8, 4]);
+        ctx.stroke();
+
+        // Orbiting shield energy nodes
+        for (let i = 0; i < 3; i++) {
+          const angle = player.shieldRotation + (i * Math.PI * 2) / 3;
+          const nx = Math.cos(angle) * 32;
+          const ny = Math.sin(angle) * 32;
+          ctx.beginPath();
+          ctx.arc(nx, ny, 3.5, 0, Math.PI * 2);
+          ctx.fillStyle = '#ffffff';
+          ctx.shadowColor = '#38bdf8';
+          ctx.shadowBlur = 10;
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      // Draw Stickman Motion Blur Trail
+      player.trail.forEach((t) => {
+        drawStickman(t.x, t.y, t.facing, 0, !player.isGrounded, t.alpha * 0.35, true);
+      });
+
+      // Draw Main Stickman Player
+      if (player.invulnerableTimer <= 0 || Math.floor(player.invulnerableTimer * 12) % 2 === 0) {
+        drawStickman(player.x, player.y, player.facing, player.walkAnimTime, !player.isGrounded, 1.0, false);
+      }
+
+      // Draw Particles
+      particles.forEach((p) => {
+        ctx.save();
+        const pAlpha = p.life / p.maxLife;
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = pAlpha;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+
+      // Draw Floating Text (Dodge, Combo, Score)
+      floatingTexts.forEach((ft) => {
+        ctx.save();
+        const alpha = ft.life / ft.maxLife;
+        ctx.globalAlpha = alpha;
+        ctx.font = '800 13px "Chakra Petch", sans-serif';
+        ctx.fillStyle = ft.color;
+        ctx.shadowColor = ft.color;
+        ctx.shadowBlur = 10;
+        ctx.textAlign = 'center';
+        ctx.fillText(ft.text, ft.x, ft.y);
+        ctx.restore();
+      });
+
+      // White flash when lightning strikes
+      if (flashOpacity > 0) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${flashOpacity})`;
+        ctx.fillRect(0, 0, width, height);
+      }
+
+      ctx.restore();
+    }
+
+    function gameLoop(currentTime) {
+      const dt = Math.min((currentTime - lastTime) / 1000, 0.1);
+      lastTime = currentTime;
+
+      if (currentState === GAME_STATE.PLAYING) {
+        updateGame(dt);
+      }
+      drawGame();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    window.onload = function () {
+      resizeCanvas();
+      resetGame();
+      loadLeaderboardData(); // Fetch leaderboard on initial launch
+      lastTime = performance.now();
+      requestAnimationFrame(gameLoop);
+    };
+  </script>
+</body>
+</html>
