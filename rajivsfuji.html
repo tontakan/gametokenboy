@@ -1,0 +1,1502 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Pong Game - Raijin vs Fujin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,400;0,600;0,700;1,700&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+  
+  <style>
+    * {
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      box-sizing: border-box;
+    }
+    body {
+      background-color: #060913;
+      color: #e2e8f0;
+      font-family: 'Chakra Petch', sans-serif;
+      overflow: hidden;
+      touch-action: none;
+    }
+    .font-hud {
+      font-family: 'Orbitron', monospace;
+    }
+    /* Neon Glow Utilities */
+    .glow-lightning {
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.65), inset 0 0 10px rgba(56, 189, 248, 0.4);
+      border-color: #38bdf8;
+    }
+    .glow-wind {
+      box-shadow: 0 0 20px rgba(110, 231, 183, 0.65), inset 0 0 10px rgba(110, 231, 183, 0.4);
+      border-color: #6ee7b7;
+    }
+    .text-glow-blue {
+      text-shadow: 0 0 12px rgba(56, 189, 248, 0.9), 0 0 25px rgba(14, 165, 233, 0.6);
+    }
+    .text-glow-green {
+      text-shadow: 0 0 12px rgba(110, 231, 183, 0.9), 0 0 25px rgba(52, 211, 153, 0.6);
+    }
+    .scanlines {
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+      background-size: 100% 4px;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body class="w-screen h-screen flex flex-col items-center justify-between p-1 sm:p-3 relative overflow-hidden bg-slate-950">
+
+  <header class="w-full max-w-4xl z-20 flex flex-col items-center gap-1 select-none">
+    <div class="text-center">
+      <h1 class="text-xs sm:text-sm md:text-base font-bold tracking-widest text-slate-400 uppercase font-hud">
+        Pong Game &bull; Raijin ⚡ vs Fujin 🌪️
+      </h1>
+      <p class="text-[10px] sm:text-xs text-sky-400/80 font-mono tracking-wider">
+        LIGHTNING VS WIND PONG &bull; KINGDOM CLASH
+      </p>
+    </div>
+
+    <!-- Main Score & Level Card -->
+    <div class="w-full grid grid-cols-3 items-center bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-2xl p-2 sm:px-6 shadow-2xl relative">
+      <!-- Player: Raijin -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <div class="w-9 h-9 sm:w-12 sm:h-12 rounded-xl bg-sky-950/80 border border-sky-400/50 flex items-center justify-center text-xl sm:text-2xl shadow-[0_0_12px_rgba(56,189,248,0.4)]">
+          ⚡
+        </div>
+        <div>
+          <span class="text-[10px] sm:text-xs font-bold text-sky-400 uppercase tracking-wider block">RAIJIN (P1)</span>
+          <span id="player-score" class="font-hud text-xl sm:text-3xl font-extrabold text-sky-300 text-glow-blue">0</span>
+        </div>
+      </div>
+
+      <!-- Center Match Info & Stage Indicator -->
+      <div class="text-center flex flex-col items-center justify-center">
+        <span id="stage-badge" class="px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-hud font-bold bg-slate-800 text-amber-400 border border-amber-500/30">
+          ผจญภัย: ด่าน 1 / 10
+        </span>
+        <button id="btn-header-menu" class="mt-1 px-2.5 py-0.5 rounded-md text-[10px] sm:text-xs font-hud font-bold bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 border border-indigo-500/50 shadow transition flex items-center gap-1">
+          <span>🏠</span> <span id="header-mode-text">เมนูหลัก</span>
+        </button>
+        <span id="match-target" class="text-[9px] sm:text-[11px] text-slate-400 font-mono mt-0.5">
+          FIRST TO 5
+        </span>
+      </div>
+
+      <!-- Opponent: Fujin -->
+      <div class="flex items-center justify-end gap-2 sm:gap-3">
+        <div class="text-right">
+          <span id="p2-label" class="text-[10px] sm:text-xs font-bold text-emerald-400 uppercase tracking-wider block">FUJIN (AI)</span>
+          <span id="ai-score" class="font-hud text-xl sm:text-3xl font-extrabold text-emerald-300 text-glow-green">0</span>
+        </div>
+        <div class="w-9 h-9 sm:w-12 sm:h-12 rounded-xl bg-emerald-950/80 border border-emerald-400/50 flex items-center justify-center text-xl sm:text-2xl shadow-[0_0_12px_rgba(110,231,183,0.4)]">
+          🌪️
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="w-full max-w-4xl flex-1 my-1 sm:my-2 relative flex items-center justify-center overflow-hidden rounded-2xl border-2 border-slate-800 bg-slate-950 shadow-[0_0_40px_rgba(0,0,0,0.8)]">
+    <!-- Active Game Canvas -->
+    <canvas id="gameCanvas" class="w-full h-full block cursor-crosshair"></canvas>
+
+    <!-- Scanline Vintage Visual Effect -->
+    <div class="absolute inset-0 scanlines opacity-40 pointer-events-none"></div>
+
+    <!-- 2P Touch Guides Visual Overlay (Disappears on touch) -->
+    <div id="touch-guide-overlay" class="absolute inset-0 pointer-events-none flex justify-between p-3 opacity-60 text-[10px] sm:text-xs font-mono select-none">
+      <div class="flex flex-col justify-end text-sky-400/80 bg-sky-950/20 border-r border-dashed border-sky-500/20 w-1/2 p-2">
+        <span>👈 แตะลากฝั่งซ้าย: P1 (⚡ ไรจิน)</span>
+      </div>
+      <div class="flex flex-col justify-end items-end text-emerald-400/80 bg-emerald-950/20 w-1/2 p-2">
+        <span id="touch-guide-p2">👉 แตะลากฝั่งขวา: P2 (🌪️ ฟูจิน)</span>
+      </div>
+    </div>
+
+    <!-- On-screen Center Flash Message (Goals, Super moves) -->
+    <div id="alert-banner" class="absolute pointer-events-none flex flex-col items-center justify-center transition-all duration-300 opacity-0 transform scale-75">
+      <h2 id="banner-title" class="font-hud text-2xl sm:text-4xl md:text-5xl font-black text-white text-glow-blue uppercase tracking-widest text-center">
+        GOAL!
+      </h2>
+      <p id="banner-sub" class="text-xs sm:text-base text-cyan-300 font-semibold mt-1 font-mono tracking-wide"></p>
+    </div>
+
+    <!-- In-Game Pause Toggle Floating Button -->
+    <button id="btn-pause" class="absolute top-3 right-3 z-30 bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-slate-700 w-9 h-9 rounded-xl flex items-center justify-center backdrop-blur shadow-lg active:scale-95 transition">
+      <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+    </button>
+
+    <!-- Audio Mute Toggle Button -->
+    <button id="btn-sound" class="absolute top-3 left-3 z-30 bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-slate-700 w-9 h-9 rounded-xl flex items-center justify-center backdrop-blur shadow-lg active:scale-95 transition">
+      <span id="sound-icon">🔊</span>
+    </button>
+  </main>
+
+  <footer class="w-full max-w-4xl flex items-center justify-between px-3 py-1.5 bg-slate-900/60 rounded-xl border border-slate-800/80 text-[11px] sm:text-xs text-slate-400">
+    <div class="flex items-center gap-2">
+      <span class="inline-block w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
+      <span id="footer-instructions" class="font-mono text-[10px] sm:text-xs">
+        โหมดผจญภัย: แตะลากซีกซ้ายเพื่อบังคับไม้ P1 (W/S) สู้กับ AI ฟูจิน
+      </span>
+    </div>
+    <div class="flex items-center gap-2">
+      <button id="btn-menu-footer" class="px-2.5 py-1 bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 rounded-lg border border-indigo-700 font-bold transition flex items-center gap-1">
+        🏠 เมนูหลัก
+      </button>
+      <button id="btn-open-levels" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-sky-400 rounded-lg border border-slate-700 font-bold transition">
+        ด่าน (1-10)
+      </button>
+      <button id="btn-restart-round" class="px-2.5 py-1 bg-rose-950/60 hover:bg-rose-900 text-rose-300 rounded-lg border border-rose-800/60 font-bold transition">
+        เริ่มใหม่
+      </button>
+    </div>
+  </footer>
+
+  <!-- Dialog: Main Menu (2 Major Modes) -->
+  <div id="modal-main-menu" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-slate-900/95 border-2 border-sky-500/40 rounded-3xl p-5 sm:p-8 w-full max-w-lg flex flex-col items-center text-center shadow-2xl relative overflow-hidden">
+      <!-- Background Ambient Glow -->
+      <div class="absolute -top-16 -left-16 w-44 h-44 bg-sky-500/15 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="absolute -bottom-16 -right-16 w-44 h-44 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none"></div>
+
+      <div class="text-3xl sm:text-4xl mb-1">⚡ 🏓 🌪️</div>
+      <h2 class="font-hud text-2xl sm:text-3xl font-black text-white uppercase tracking-wider text-glow-blue">
+        RAIJIN VS FUJIN
+      </h2>
+      <p class="text-xs sm:text-sm text-sky-300/80 font-mono mb-6">
+        เลือกโหมดที่ต้องการเล่น
+      </p>
+
+      <!-- 2 Main Modes Grid -->
+      <div class="w-full flex flex-col gap-3.5 sm:gap-4">
+        <!-- Option 1: Adventure 10 Stages -->
+        <div class="group relative bg-gradient-to-r from-sky-950/70 to-slate-900 border-2 border-sky-500/50 hover:border-sky-400 rounded-2xl p-4 text-left shadow-lg transition-all hover:shadow-[0_0_20px_rgba(56,189,248,0.35)]">
+          <div class="flex items-start justify-between">
+            <div class="flex items-center gap-3">
+              <span class="text-3xl p-2 bg-sky-900/40 rounded-xl border border-sky-400/30">⚡</span>
+              <div>
+                <h3 class="font-hud text-lg sm:text-xl font-bold text-sky-300 group-hover:text-white transition">
+                  1. โหมดผจญภัย 10 ด่าน
+                </h3>
+                <p class="text-[11px] sm:text-xs text-slate-300 mt-0.5">
+                  ดวลเดี่ยวกับ AI ฟูจิน ฝ่าลมพายุหมุนและเสาสายฟ้า 10 ระดับ
+                </p>
+              </div>
+            </div>
+            <span id="menu-save-badge" class="px-2 py-0.5 rounded-full text-[10px] font-hud bg-amber-950/80 text-amber-300 border border-amber-500/40 whitespace-nowrap">
+              ด่าน 1
+            </span>
+          </div>
+          <div class="grid grid-cols-2 gap-2 mt-3.5 pt-3 border-t border-sky-900/50">
+            <button id="btn-adventure-continue" class="py-2.5 px-3 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-hud font-bold text-xs sm:text-sm rounded-xl shadow transition transform active:scale-95 text-center">
+              ▶️ เล่นต่อ (ด่านล่าสุด)
+            </button>
+            <button id="btn-adventure-select" class="py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-sky-300 font-semibold text-xs sm:text-sm rounded-xl border border-sky-500/30 transition text-center">
+              🗺️ เลือกด่าน (1-10)
+            </button>
+          </div>
+        </div>
+
+        <!-- Option 2: 2-Player Local Dual Screen -->
+        <div class="group relative bg-gradient-to-r from-emerald-950/70 to-slate-900 border-2 border-emerald-500/50 hover:border-emerald-400 rounded-2xl p-4 text-left shadow-lg transition-all hover:shadow-[0_0_20px_rgba(110,231,183,0.35)]">
+          <div class="flex items-center gap-3">
+            <span class="text-3xl p-2 bg-emerald-900/40 rounded-xl border border-emerald-400/30">🌪️</span>
+            <div>
+              <h3 class="font-hud text-lg sm:text-xl font-bold text-emerald-300 group-hover:text-white transition">
+                2. โหมดเล่น 2 คน (2 PLAYERS)
+              </h3>
+              <p class="text-[11px] sm:text-xs text-slate-300 mt-0.5">
+                ดวลพร้อมกันบนหน้าจอมือถือเครื่องเดียว (แบ่งครึ่งซ้าย-ขวา) หรือคีย์บอร์ด
+              </p>
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-2 mt-3.5 pt-3 border-t border-emerald-900/50">
+            <button class="btn-start-2p py-2.5 px-1 bg-emerald-600 hover:bg-emerald-500 text-white font-hud font-bold text-xs rounded-xl shadow transition active:scale-95 text-center" data-score="5">
+              ⚔️ แข่ง 5 แต้ม
+            </button>
+            <button class="btn-start-2p py-2.5 px-1 bg-teal-600 hover:bg-teal-500 text-white font-hud font-bold text-xs rounded-xl shadow transition active:scale-95 text-center" data-score="7">
+              ⚔️ แข่ง 7 แต้ม
+            </button>
+            <button class="btn-start-2p py-2.5 px-1 bg-cyan-700 hover:bg-cyan-600 text-white font-hud font-bold text-xs rounded-xl shadow transition active:scale-95 text-center" data-score="10">
+              ⚔️ แข่ง 10 แต้ม
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-5 text-[11px] text-slate-400 font-mono">
+        💡 บนมือถือ: ลากนิ้วครึ่งจอซ้าย (ไรจิน) | ครึ่งจอขวา (ฟูจิน)
+      </div>
+    </div>
+  </div>
+
+  <!-- Dialog: Pause Menu -->
+  <div id="modal-pause" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border-2 border-sky-500/50 rounded-2xl p-6 w-full max-w-sm flex flex-col gap-4 text-center glow-lightning">
+      <div class="text-3xl">⚡ ⏸️ 🌪️</div>
+      <h3 class="font-hud text-2xl font-bold text-white text-glow-blue uppercase">เกมหยุดชั่วคราว</h3>
+      <p class="text-xs text-slate-400 font-mono" id="pause-stage-text">ด่านที่ 1: สายฟ้าแรกเริ่ม</p>
+      <div class="flex flex-col gap-2.5 mt-2">
+        <button id="btn-resume" class="w-full py-3 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold rounded-xl shadow-lg shadow-sky-500/30 transition transform active:scale-95">
+          ▶️ เล่นต่อ (RESUME)
+        </button>
+        <button id="btn-modal-restart" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl border border-slate-700 transition">
+          🔄 เริ่มด่านนี้ใหม่ (RESTART)
+        </button>
+        <button id="btn-modal-select-stage" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl border border-slate-700 transition">
+          🗺️ เลือกด่าน (STAGES)
+        </button>
+        <button id="btn-modal-main-menu" class="w-full py-2.5 bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 font-semibold rounded-xl border border-indigo-700/60 transition">
+          🏠 กลับหน้าเมนูหลัก (MAIN MENU)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dialog: Level Select Menu (10 Stages) -->
+  <div id="modal-stages" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700 rounded-3xl p-5 sm:p-7 w-full max-w-lg flex flex-col max-h-[90vh] shadow-2xl">
+      <div class="flex justify-between items-center mb-4">
+        <div>
+          <h3 class="font-hud text-xl sm:text-2xl font-bold text-white text-glow-blue uppercase">เลือกด่าน (10 ด่าน)</h3>
+          <p class="text-xs text-slate-400">ปลดล็อกและตะลุยอาณาจักรพายุทั้ง 10 ด่าน</p>
+        </div>
+        <button id="btn-close-stages" class="text-slate-400 hover:text-white text-2xl font-mono p-1">&times;</button>
+      </div>
+      <div id="stages-grid" class="grid grid-cols-2 sm:grid-cols-2 gap-2.5 overflow-y-auto pr-1 py-1 flex-1">
+        <!-- Generated Dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Dialog: Stage Cleared / Victory / Defeat Screen -->
+  <div id="modal-result" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 hidden">
+    <div id="result-box" class="bg-slate-900 border-2 rounded-3xl p-6 w-full max-w-md flex flex-col items-center text-center shadow-2xl">
+      <div id="result-icon" class="text-5xl mb-2">⚡</div>
+      <h3 id="result-title" class="font-hud text-3xl font-extrabold mb-1 uppercase tracking-wider"></h3>
+      <p id="result-desc" class="text-xs sm:text-sm text-slate-300 font-mono mb-6"></p>
+      
+      <div class="w-full flex flex-col gap-2.5">
+        <button id="btn-result-next" class="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-hud font-bold rounded-xl shadow-lg transition transform active:scale-95">
+          ลุยด่านต่อไป (NEXT STAGE)
+        </button>
+        <button id="btn-result-retry" class="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl border border-slate-700 transition">
+          เล่นใหม่ (TRY AGAIN)
+        </button>
+        <button id="btn-result-home" class="w-full py-2.5 bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 font-semibold rounded-xl border border-indigo-700/50 transition">
+          🏠 กลับหน้าเมนูหลัก
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Web Audio Synthesizer - 100% self-contained sound effects
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.enabled = true;
+      }
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContext();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+      playElectricZap() {
+        if (!this.enabled) return;
+        this.init();
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(800, now);
+          osc.frequency.exponentialRampToValueAtTime(140, now + 0.12);
+          gain.gain.setValueAtTime(0.25, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.12);
+        } catch (e) {}
+      }
+      playWindWhoosh() {
+        if (!this.enabled) return;
+        this.init();
+        try {
+          const now = this.ctx.currentTime;
+          // Noise buffer for wind gust
+          const bufferSize = this.ctx.sampleRate * 0.18;
+          const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+          }
+          const noise = this.ctx.createBufferSource();
+          noise.buffer = buffer;
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'bandpass';
+          filter.frequency.setValueAtTime(600, now);
+          filter.frequency.exponentialRampToValueAtTime(250, now + 0.18);
+          filter.Q.value = 3.0;
+
+          const gain = this.ctx.createGain();
+          gain.gain.setValueAtTime(0.28, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+
+          noise.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.ctx.destination);
+          noise.start(now);
+        } catch (e) {}
+      }
+      playScoreFanfare(isWin) {
+        if (!this.enabled) return;
+        this.init();
+        try {
+          const now = this.ctx.currentTime;
+          const notes = isWin ? [440, 554, 659, 880] : [330, 311, 293, 220];
+          notes.forEach((freq, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = isWin ? 'triangle' : 'sine';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+            gain.gain.setValueAtTime(0.2, now + idx * 0.08);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.08 + 0.2);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now + idx * 0.08);
+            osc.stop(now + idx * 0.08 + 0.25);
+          });
+        } catch (e) {}
+      }
+      playThunderBoom() {
+        if (!this.enabled) return;
+        this.init();
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(110, now);
+          osc.frequency.exponentialRampToValueAtTime(30, now + 0.5);
+          gain.gain.setValueAtTime(0.4, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.5);
+        } catch (e) {}
+      }
+    }
+
+    const sound = new SoundEngine();
+
+    const STAGES = [
+      {
+        id: 1,
+        title: "ด่าน 1: สายฟ้าแรกเริ่ม (Initial Spark)",
+        subtitle: "ความเร็วลูกบอลพื้นฐาน ซ้อมรับมือกับเทพวายุ",
+        targetScore: 5,
+        ballSpeed: 6.0,
+        aiSpeed: 4.8,
+        aiReaction: 0.82,
+        windStrength: 0,
+        lightningHazard: false,
+        vortex: false
+      },
+      {
+        id: 2,
+        title: "ด่าน 2: วายุสายฟ้าผสาน (Thunder & Breeze)",
+        subtitle: "เทพวายุเริ่มเร็วขึ้น ลูกบอลมีแรงสปีดต่อเนื่อง",
+        targetScore: 5,
+        ballSpeed: 7.0,
+        aiSpeed: 5.4,
+        aiReaction: 0.85,
+        windStrength: 0.08,
+        lightningHazard: false,
+        vortex: false
+      },
+      {
+        id: 3,
+        title: "ด่าน 3: ลมกรรโชก (Wind Gust Alley)",
+        subtitle: "มีลมพัดทิศเหนือ-ใต้ ดัดวิถีการเคลื่อนที่ของลูกบอล",
+        targetScore: 6,
+        ballSpeed: 7.6,
+        aiSpeed: 5.9,
+        aiReaction: 0.88,
+        windStrength: 0.25,
+        lightningHazard: false,
+        vortex: false
+      },
+      {
+        id: 4,
+        title: "ด่าน 4: เสาไฟฟ้าแรงสูง (High Voltage Spire)",
+        subtitle: "สิ่งกีดขวางสายฟ้าตรงกลาง หากบอลชนจะเด้งหักเหฉับพลัน",
+        targetScore: 6,
+        ballSpeed: 8.0,
+        aiSpeed: 6.3,
+        aiReaction: 0.89,
+        windStrength: 0.1,
+        lightningHazard: true,
+        vortex: false
+      },
+      {
+        id: 5,
+        title: "ด่าน 5: วังวนพายุฟูจิน (Fujin's Cyclone)",
+        subtitle: "วังวนพายุหมุนกลางสนามจะดูดและเหวี่ยงลูกบอล",
+        targetScore: 7,
+        ballSpeed: 8.4,
+        aiSpeed: 6.7,
+        aiReaction: 0.91,
+        windStrength: 0.3,
+        lightningHazard: false,
+        vortex: true
+      },
+      {
+        id: 6,
+        title: "ด่าน 6: อัสนีบาตไรจิน (Raijin Thunderclap)",
+        subtitle: "ลูกบอลพุ่งเร็วสะใจเมื่อกระดอนไม้ และมีแรงสะท้อนรุนแรง",
+        targetScore: 7,
+        ballSpeed: 8.9,
+        aiSpeed: 7.2,
+        aiReaction: 0.92,
+        windStrength: 0.15,
+        lightningHazard: true,
+        vortex: false
+      },
+      {
+        id: 7,
+        title: "ด่าน 7: มรสุมหมุนคู่ (Twin Vortex Storm)",
+        subtitle: "พายุหมุน 2 จุดกลางสนามเปลี่ยนวิถีบอลฉับพลัน",
+        targetScore: 8,
+        ballSpeed: 9.3,
+        aiSpeed: 7.6,
+        aiReaction: 0.93,
+        windStrength: 0.35,
+        lightningHazard: false,
+        vortex: true,
+        twinVortex: true
+      },
+      {
+        id: 8,
+        title: "ด่าน 8: คลื่นพลาสมาไฟฟ้า (Plasma Overdrive)",
+        subtitle: "ลูกบอลมีความเร่งเพิ่มขึ้นทุกครั้งที่ตี",
+        targetScore: 8,
+        ballSpeed: 9.7,
+        aiSpeed: 8.0,
+        aiReaction: 0.95,
+        windStrength: 0.2,
+        lightningHazard: true,
+        vortex: false
+      },
+      {
+        id: 9,
+        title: "ด่าน 9: ดวงตาพายุไต้ฝุ่น (Eye of Typhoon)",
+        subtitle: "แรงลมมหาศาล สภาพสนามไร้ทิศทาง",
+        targetScore: 9,
+        ballSpeed: 10.1,
+        aiSpeed: 8.5,
+        aiReaction: 0.96,
+        windStrength: 0.45,
+        lightningHazard: true,
+        vortex: true
+      },
+      {
+        id: 10,
+        title: "ด่าน 10: ศึกมหาเทพ ไรจิน VS ฟูจิน (Clash of Gods)",
+        subtitle: "บอสไฟนอล: ฟูจินเข้าสู่ร่างพายุเต็มสูบ ความเร็วระดับตำนาน!",
+        targetScore: 10,
+        ballSpeed: 10.8,
+        aiSpeed: 9.1,
+        aiReaction: 0.98,
+        windStrength: 0.5,
+        lightningHazard: true,
+        vortex: true,
+        twinVortex: true
+      }
+    ];
+
+    const STORAGE_KEY = 'pong_raijin_fujin_save';
+    let savedProgress = 1;
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) savedProgress = Math.max(1, Math.min(10, parseInt(stored, 10)));
+    } catch(e) {}
+
+    let currentStageIndex = savedProgress - 1;
+    let isPaused = true;
+    let isGameOver = false;
+    let currentGameMode = 'adventure'; // 'adventure' (10 stages vs AI) or '2player'
+    let twoPlayerTarget = 5;
+    let playerScore = 0;
+    let aiScore = 0;
+    let screenShake = 0;
+
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let W = 800;
+    let H = 500;
+
+    function resizeCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      W = canvas.width = Math.floor(rect.width);
+      H = canvas.height = Math.floor(rect.height);
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Visual Particles Array
+    let particles = [];
+    let shockwaves = [];
+    let lightningArcs = [];
+
+    class Particle {
+      constructor(x, y, color, type = 'spark') {
+        this.x = x;
+        this.y = y;
+        this.type = type;
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 4 + 1;
+        this.vx = Math.cos(angle) * speed;
+        this.vy = Math.sin(angle) * speed;
+        this.life = 1.0;
+        this.decay = Math.random() * 0.03 + 0.02;
+        this.size = Math.random() * 3 + 2;
+        this.color = color;
+      }
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.life -= this.decay;
+        if (this.type === 'wind') {
+          this.vx += (Math.random() - 0.5) * 0.4;
+          this.vy -= 0.1;
+        }
+      }
+      draw(ctx) {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, this.life);
+        ctx.fillStyle = this.color;
+        ctx.shadowColor = this.color;
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    class Shockwave {
+      constructor(x, y, color) {
+        this.x = x;
+        this.y = y;
+        this.color = color;
+        this.radius = 5;
+        this.life = 1.0;
+      }
+      update() {
+        this.radius += 3.5;
+        this.life -= 0.05;
+      }
+      draw(ctx) {
+        if (this.life <= 0) return;
+        ctx.save();
+        ctx.globalAlpha = this.life;
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = 3;
+        ctx.shadowColor = this.color;
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    const paddleWidth = 14;
+    const paddleHeight = 85;
+
+    const player = {
+      x: 35,
+      y: 200,
+      w: paddleWidth,
+      h: paddleHeight,
+      vy: 0,
+      speed: 8.5,
+      targetY: 200,
+      touchId: null,
+      mode: 'lightning'
+    };
+
+    const ai = {
+      x: 750,
+      y: 200,
+      w: paddleWidth,
+      h: paddleHeight,
+      vy: 0,
+      speed: 8.5,
+      targetY: 200,
+      touchId: null,
+      mode: 'wind'
+    };
+
+    const ball = {
+      x: 400,
+      y: 250,
+      radius: 8.5,
+      speed: 6.5,
+      baseSpeed: 6.5,
+      vx: 6,
+      vy: 2,
+      trail: [],
+      lastHit: 'player'
+    };
+
+    const keys = {};
+    window.addEventListener('keydown', (e) => {
+      keys[e.key.toLowerCase()] = true;
+      if (e.key === ' ' || e.key === 'Escape') {
+        const modalMenu = document.getElementById('modal-main-menu');
+        if (modalMenu.classList.contains('hidden')) {
+          togglePause();
+        }
+      }
+    });
+    window.addEventListener('keyup', (e) => {
+      keys[e.key.toLowerCase()] = false;
+    });
+
+    // Multi-touch handler for seamless mobile controls in both 1P & 2P
+    function handleTouch(e) {
+      sound.init();
+      const rect = canvas.getBoundingClientRect();
+      const halfWidth = rect.width / 2;
+
+      for (let i = 0; i < e.touches.length; i++) {
+        const touch = e.touches[i];
+        const touchX = touch.clientX - rect.left;
+        const touchY = touch.clientY - rect.top;
+
+        if (touchX < halfWidth) {
+          // Left Side Touch -> Controls Player 1 (Raijin)
+          player.targetY = Math.max(player.h / 2, Math.min(H - player.h / 2, (touchY / rect.height) * H));
+          player.touchId = touch.identifier;
+        } else {
+          // Right Side Touch -> Controls Player 2 (Fujin) in 2P mode
+          if (currentGameMode === '2player') {
+            ai.targetY = Math.max(ai.h / 2, Math.min(H - ai.h / 2, (touchY / rect.height) * H));
+            ai.touchId = touch.identifier;
+          }
+        }
+      }
+    }
+
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      handleTouch(e);
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      handleTouch(e);
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', (e) => {
+      const activeTouchIds = Array.from(e.touches).map(t => t.identifier);
+      if (!activeTouchIds.includes(player.touchId)) player.touchId = null;
+      if (!activeTouchIds.includes(ai.touchId)) ai.touchId = null;
+    });
+
+    // Mouse movement
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const relativeY = ((e.clientY - rect.top) / rect.height) * H;
+
+      if (currentGameMode !== '2player' || mouseX < rect.width / 2) {
+        player.targetY = Math.max(player.h / 2, Math.min(H - player.h / 2, relativeY));
+      } else {
+        ai.targetY = Math.max(ai.h / 2, Math.min(H - ai.h / 2, relativeY));
+      }
+    });
+
+    function showMainMenu() {
+      isPaused = true;
+      document.getElementById('modal-main-menu').classList.remove('hidden');
+      document.getElementById('modal-pause').classList.add('hidden');
+      document.getElementById('modal-stages').classList.add('hidden');
+      document.getElementById('modal-result').classList.add('hidden');
+
+      // Update badge text on main menu
+      const saveBadge = document.getElementById('menu-save-badge');
+      if (saveBadge) saveBadge.innerText = `ด่าน ${savedProgress} / 10`;
+
+      const btnContinue = document.getElementById('btn-adventure-continue');
+      if (btnContinue) {
+        btnContinue.innerText = `▶️ เล่นต่อ (ด่าน ${savedProgress})`;
+      }
+    }
+
+    function startAdventureMode(stageIdx = null) {
+      currentGameMode = 'adventure';
+      if (stageIdx !== null) {
+        currentStageIndex = stageIdx;
+      } else {
+        currentStageIndex = savedProgress - 1;
+      }
+
+      document.getElementById('modal-main-menu').classList.add('hidden');
+      document.getElementById('p2-label').innerText = 'FUJIN (AI)';
+      document.getElementById('touch-guide-p2').innerText = '👉 AI วายุฟูจิน';
+      document.getElementById('footer-instructions').innerText = 'โหมดผจญภัย: แตะลากซีกซ้ายเพื่อบังคับไม้ P1 (W/S) สู้กับ AI ฟูจิน';
+      document.getElementById('header-mode-text').innerText = 'โหมดผจญภัย';
+
+      startStage(currentStageIndex);
+    }
+
+    function startTwoPlayerMode(targetScore = 5) {
+      currentGameMode = '2player';
+      twoPlayerTarget = targetScore;
+      playerScore = 0;
+      aiScore = 0;
+      updateScoreboard();
+
+      document.getElementById('modal-main-menu').classList.add('hidden');
+      document.getElementById('modal-pause').classList.add('hidden');
+      document.getElementById('modal-stages').classList.add('hidden');
+      document.getElementById('modal-result').classList.add('hidden');
+
+      document.getElementById('stage-badge').innerText = `2 PLAYERS DUEL`;
+      document.getElementById('match-target').innerText = `FIRST TO ${twoPlayerTarget}`;
+      document.getElementById('header-mode-text').innerText = 'โหมด 2 คน';
+      document.getElementById('p2-label').innerText = 'FUJIN (P2)';
+      document.getElementById('touch-guide-p2').innerText = '👉 แตะลากฝั่งขวา: P2 (🌪️ ฟูจิน)';
+      document.getElementById('footer-instructions').innerText = 'โหมดเล่น 2 คน: ซีกซ้ายบังคับ P1 (W/S) | ซีกขวาบังคับ P2 (▲/▼)';
+      document.getElementById('pause-stage-text').innerText = `ดวล 2 คน (เป้าหมาย ${twoPlayerTarget} แต้ม)`;
+
+      isPaused = false;
+      isGameOver = false;
+
+      triggerBanner("2 PLAYERS", `แข่งแตะลูกบอล ใครได้ ${twoPlayerTarget} แต้มก่อนชนะ!`, true);
+      resetBall(1);
+    }
+
+    function resetBall(direction = 1) {
+      const stage = STAGES[currentStageIndex] || STAGES[0];
+      ball.x = W / 2;
+      ball.y = H / 2;
+      ball.baseSpeed = currentGameMode === 'adventure' ? stage.ballSpeed : 7.2;
+      ball.speed = ball.baseSpeed;
+      const angle = (Math.random() * 0.7 - 0.35) * Math.PI;
+      ball.vx = Math.cos(angle) * ball.speed * direction;
+      ball.vy = Math.sin(angle) * ball.speed;
+      ball.trail = [];
+      ball.lastHit = direction > 0 ? 'player' : 'ai';
+    }
+
+    function createLightningBranch(startX, startY, endX, endY, depth = 3) {
+      if (depth === 0) {
+        return [{ x: startX, y: startY }, { x: endX, y: endY }];
+      }
+      const midX = (startX + endX) / 2 + (Math.random() - 0.5) * 20;
+      const midY = (startY + endY) / 2 + (Math.random() - 0.5) * 20;
+      return [
+        ...createLightningBranch(startX, startY, midX, midY, depth - 1),
+        ...createLightningBranch(midX, midY, endX, endY, depth - 1)
+      ];
+    }
+
+    function triggerBanner(title, sub, isPlayer = true) {
+      const banner = document.getElementById('alert-banner');
+      const bTitle = document.getElementById('banner-title');
+      const bSub = document.getElementById('banner-sub');
+      bTitle.innerText = title;
+      bTitle.className = `font-hud text-3xl sm:text-5xl font-black uppercase tracking-widest text-center ${isPlayer ? 'text-sky-300 text-glow-blue' : 'text-emerald-300 text-glow-green'}`;
+      bSub.innerText = sub;
+
+      banner.style.opacity = '1';
+      banner.style.transform = 'scale(1)';
+      setTimeout(() => {
+        banner.style.opacity = '0';
+        banner.style.transform = 'scale(0.8)';
+      }, 1200);
+    }
+
+    let windTime = 0;
+
+    function update() {
+      if (isPaused || isGameOver) return;
+
+      const stage = STAGES[currentStageIndex] || STAGES[0];
+      windTime += 0.03;
+
+      // 1. Player 1 (Raijin - Left Paddle)
+      if (keys['w']) {
+        player.y -= player.speed;
+        player.targetY = player.y;
+      } else if (keys['s']) {
+        player.y += player.speed;
+        player.targetY = player.y;
+      } else {
+        player.y += (player.targetY - player.y) * 0.4;
+      }
+      player.y = Math.max(player.h / 2, Math.min(H - player.h / 2, player.y));
+      player.x = 35;
+
+      // 2. Player 2 or AI (Fujin - Right Paddle)
+      ai.x = W - 35;
+      if (currentGameMode === '2player') {
+        if (keys['arrowup']) {
+          ai.y -= ai.speed;
+          ai.targetY = ai.y;
+        } else if (keys['arrowdown']) {
+          ai.y += ai.speed;
+          ai.targetY = ai.y;
+        } else {
+          ai.y += (ai.targetY - ai.y) * 0.4;
+        }
+      } else {
+        // AI Tracking
+        const targetAIY = ball.y + (Math.sin(windTime * 2) * 15);
+        const aiDiff = targetAIY - ai.y;
+        const moveAmount = Math.sign(aiDiff) * Math.min(Math.abs(aiDiff), stage.aiSpeed);
+        ai.y += moveAmount * stage.aiReaction;
+      }
+      ai.y = Math.max(ai.h / 2, Math.min(H - ai.h / 2, ai.y));
+
+      // 3. Environmental Hazards & Wind
+      if (currentGameMode === 'adventure') {
+        if (stage.windStrength > 0) {
+          const windPush = Math.sin(windTime * 1.5) * stage.windStrength * 1.8;
+          ball.vy += windPush * 0.15;
+        }
+
+        // Vortex Physics
+        if (stage.vortex) {
+          const vortices = stage.twinVortex
+            ? [{ x: W * 0.35, y: H * 0.5 }, { x: W * 0.65, y: H * 0.5 }]
+            : [{ x: W * 0.5, y: H * 0.5 }];
+
+          vortices.forEach(v => {
+            const dx = v.x - ball.x;
+            const dy = v.y - ball.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 140 && dist > 10) {
+              const force = (140 - dist) / 140 * 0.35;
+              ball.vx += (dx / dist) * force * 0.4 - (dy / dist) * force * 0.6;
+              ball.vy += (dy / dist) * force * 0.4 + (dx / dist) * force * 0.6;
+            }
+          });
+        }
+
+        // Lightning Hazard in center
+        if (stage.lightningHazard) {
+          const pillar = { x: W * 0.5, y: H * 0.5, radius: 24 };
+          const dx = pillar.x - ball.x;
+          const dy = pillar.y - ball.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < pillar.radius + ball.radius) {
+            ball.vx = -ball.vx * 1.05;
+            ball.vy = (Math.random() - 0.5) * 8;
+            sound.playElectricZap();
+            screenShake = 6;
+            shockwaves.push(new Shockwave(pillar.x, pillar.y, '#38bdf8'));
+            for (let i = 0; i < 12; i++) {
+              particles.push(new Particle(pillar.x, pillar.y, '#38bdf8', 'spark'));
+            }
+          }
+        }
+      }
+
+      // 4. Ball Movement
+      ball.x += ball.vx;
+      ball.y += ball.vy;
+
+      // Ball trail recording
+      ball.trail.push({ x: ball.x, y: ball.y });
+      if (ball.trail.length > 14) ball.trail.shift();
+
+      // Top & Bottom Bounce
+      if (ball.y - ball.radius <= 0) {
+        ball.y = ball.radius;
+        ball.vy = -ball.vy;
+        sound.playWindWhoosh();
+        shockwaves.push(new Shockwave(ball.x, ball.y, '#64748b'));
+      } else if (ball.y + ball.radius >= H) {
+        ball.y = H - ball.radius;
+        ball.vy = -ball.vy;
+        sound.playWindWhoosh();
+        shockwaves.push(new Shockwave(ball.x, ball.y, '#64748b'));
+      }
+
+      // 5. Collision with Raijin (Left Paddle)
+      const pLeft = player.x - player.w / 2;
+      const pRight = player.x + player.w / 2;
+      const pTop = player.y - player.h / 2;
+      const pBottom = player.y + player.h / 2;
+
+      if (ball.x - ball.radius <= pRight && ball.x + ball.radius >= pLeft &&
+          ball.y + ball.radius >= pTop && ball.y - ball.radius <= pBottom &&
+          ball.vx < 0) {
+        
+        const relativeIntersectY = (player.y - ball.y) / (player.h / 2);
+        const bounceAngle = -relativeIntersectY * (Math.PI / 3.4);
+
+        ball.speed = Math.min(18, ball.speed + 0.35);
+        ball.vx = Math.cos(bounceAngle) * ball.speed;
+        ball.vy = -Math.sin(bounceAngle) * ball.speed;
+        ball.x = pRight + ball.radius;
+        ball.lastHit = 'player';
+
+        sound.playElectricZap();
+        screenShake = 8;
+        shockwaves.push(new Shockwave(ball.x, ball.y, '#38bdf8'));
+
+        for (let i = 0; i < 16; i++) {
+          particles.push(new Particle(ball.x, ball.y, '#38bdf8', 'spark'));
+        }
+        lightningArcs.push({
+          x1: player.x,
+          y1: player.y - player.h / 2 + Math.random() * player.h,
+          x2: ball.x + 30,
+          y2: ball.y + (Math.random() - 0.5) * 30,
+          life: 8
+        });
+      }
+
+      // 6. Collision with Fujin (Right Paddle)
+      const aiLeft = ai.x - ai.w / 2;
+      const aiRight = ai.x + ai.w / 2;
+      const aiTop = ai.y - ai.h / 2;
+      const aiBottom = ai.y + ai.h / 2;
+
+      if (ball.x + ball.radius >= aiLeft && ball.x - ball.radius <= aiRight &&
+          ball.y + ball.radius >= aiTop && ball.y - ball.radius <= aiBottom &&
+          ball.vx > 0) {
+
+        const relativeIntersectY = (ai.y - ball.y) / (ai.h / 2);
+        const bounceAngle = -relativeIntersectY * (Math.PI / 3.4);
+
+        ball.speed = Math.min(18, ball.speed + 0.35);
+        ball.vx = -Math.cos(bounceAngle) * ball.speed;
+        ball.vy = -Math.sin(bounceAngle) * ball.speed;
+        ball.x = aiLeft - ball.radius;
+        ball.lastHit = 'ai';
+
+        sound.playWindWhoosh();
+        screenShake = 6;
+        shockwaves.push(new Shockwave(ball.x, ball.y, '#6ee7b7'));
+
+        for (let i = 0; i < 16; i++) {
+          particles.push(new Particle(ball.x, ball.y, '#6ee7b7', 'wind'));
+        }
+      }
+
+      // 7. Goal Scoring Condition
+      if (ball.x < -20) {
+        aiScore++;
+        updateScoreboard();
+        sound.playScoreFanfare(false);
+        const labelP2 = currentGameMode === '2player' ? "ผู้เล่น 2 (ฟูจิน)" : "เทพวายุ ฟูจิน";
+        triggerBanner("FUJIN POINT", `${labelP2} ทำแต้ม!`, false);
+        checkRoundFinish();
+        resetBall(1);
+      } else if (ball.x > W + 20) {
+        playerScore++;
+        updateScoreboard();
+        sound.playScoreFanfare(true);
+        const labelP1 = currentGameMode === '2player' ? "ผู้เล่น 1 (ไรจิน)" : "เทพสายฟ้า ไรจิน";
+        triggerBanner("RAIJIN POINT", `${labelP1} ทำแต้ม!`, true);
+        checkRoundFinish();
+        resetBall(-1);
+      }
+
+      // 8. Update Particles & Shockwaves
+      particles.forEach(p => p.update());
+      particles = particles.filter(p => p.life > 0);
+
+      shockwaves.forEach(sw => sw.update());
+      shockwaves = shockwaves.filter(sw => sw.life > 0);
+
+      lightningArcs.forEach(la => la.life--);
+      lightningArcs = lightningArcs.filter(la => la.life > 0);
+
+      if (Math.random() < 0.4) {
+        particles.push(new Particle(player.x + (Math.random() - 0.5) * 8, player.y + (Math.random() - 0.5) * player.h, '#38bdf8', 'spark'));
+      }
+      if (Math.random() < 0.4) {
+        particles.push(new Particle(ai.x + (Math.random() - 0.5) * 8, ai.y + (Math.random() - 0.5) * ai.h, '#6ee7b7', 'wind'));
+      }
+
+      if (screenShake > 0) screenShake *= 0.88;
+      if (screenShake < 0.3) screenShake = 0;
+    }
+
+    function draw() {
+      ctx.save();
+      if (screenShake > 0) {
+        const shakeX = (Math.random() - 0.5) * screenShake * 2;
+        const shakeY = (Math.random() - 0.5) * screenShake * 2;
+        ctx.translate(shakeX, shakeY);
+      }
+
+      // Clear Canvas
+      const bgGrad = ctx.createLinearGradient(0, 0, W, H);
+      bgGrad.addColorStop(0, '#040d1a');
+      bgGrad.addColorStop(0.5, '#05070d');
+      bgGrad.addColorStop(1, '#051912');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, W, H);
+
+      // Arena Center Line
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.15)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([8, 12]);
+      ctx.beginPath();
+      ctx.moveTo(W / 2, 0);
+      ctx.lineTo(W / 2, H);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Center Court Ring
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.2)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(W / 2, H / 2, 60, 0, Math.PI * 2);
+      ctx.stroke();
+
+      const stage = STAGES[currentStageIndex] || STAGES[0];
+
+      // Draw Adventure Hazards
+      if (currentGameMode === 'adventure') {
+        if (stage.vortex) {
+          const drawVortexAt = (vx, vy) => {
+            ctx.save();
+            ctx.translate(vx, vy);
+            ctx.rotate(windTime * 3);
+            ctx.strokeStyle = 'rgba(110, 231, 183, 0.4)';
+            ctx.lineWidth = 2.5;
+            ctx.shadowColor = '#6ee7b7';
+            ctx.shadowBlur = 15;
+            for (let r = 15; r < 75; r += 18) {
+              ctx.beginPath();
+              ctx.arc(0, 0, r, 0, Math.PI * 1.3);
+              ctx.stroke();
+            }
+            ctx.restore();
+          };
+
+          if (stage.twinVortex) {
+            drawVortexAt(W * 0.35, H * 0.5);
+            drawVortexAt(W * 0.65, H * 0.5);
+          } else {
+            drawVortexAt(W * 0.5, H * 0.5);
+          }
+        }
+
+        if (stage.lightningHazard) {
+          ctx.save();
+          ctx.fillStyle = '#0f2942';
+          ctx.strokeStyle = '#38bdf8';
+          ctx.lineWidth = 3;
+          ctx.shadowColor = '#38bdf8';
+          ctx.shadowBlur = 20;
+          ctx.beginPath();
+          ctx.arc(W * 0.5, H * 0.5, 20, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = '#e0f2fe';
+          ctx.font = '16px monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('⚡', W * 0.5, H * 0.5);
+          ctx.restore();
+        }
+      }
+
+      // Draw Ball Trail
+      for (let i = 0; i < ball.trail.length; i++) {
+        const pt = ball.trail[i];
+        const ratio = (i + 1) / ball.trail.length;
+        ctx.save();
+        ctx.globalAlpha = ratio * 0.45;
+        ctx.fillStyle = ball.lastHit === 'player' ? '#38bdf8' : '#6ee7b7';
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, ball.radius * ratio * 0.9, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Draw Ball
+      ctx.save();
+      const ballColor = ball.lastHit === 'player' ? '#38bdf8' : '#6ee7b7';
+      ctx.shadowColor = ballColor;
+      ctx.shadowBlur = 18;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = ballColor;
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+      ctx.restore();
+
+      // Draw Raijin Player Paddle (Cyan)
+      ctx.save();
+      ctx.shadowColor = '#38bdf8';
+      ctx.shadowBlur = 25;
+      ctx.fillStyle = '#38bdf8';
+      ctx.beginPath();
+      ctx.roundRect(player.x - player.w / 2, player.y - player.h / 2, player.w, player.h, 7);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.roundRect(player.x - player.w / 4, player.y - player.h / 2 + 5, player.w / 2, player.h - 10, 4);
+      ctx.fill();
+      ctx.restore();
+
+      // Draw Fujin AI Paddle (Emerald)
+      ctx.save();
+      ctx.shadowColor = '#6ee7b7';
+      ctx.shadowBlur = 25;
+      ctx.fillStyle = '#6ee7b7';
+      ctx.beginPath();
+      ctx.roundRect(ai.x - ai.w / 2, ai.y - ai.h / 2, ai.w, ai.h, 7);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.roundRect(ai.x - ai.w / 4, ai.y - ai.h / 2 + 5, ai.w / 2, ai.h - 10, 4);
+      ctx.fill();
+      ctx.restore();
+
+      // Draw Lightning Bolt Arcs
+      lightningArcs.forEach(la => {
+        const points = createLightningBranch(la.x1, la.y1, la.x2, la.y2, 3);
+        ctx.save();
+        ctx.strokeStyle = '#bae6fd';
+        ctx.shadowColor = '#38bdf8';
+        ctx.shadowBlur = 15;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+          ctx.lineTo(points[i].x, points[i].y);
+        }
+        ctx.stroke();
+        ctx.restore();
+      });
+
+      shockwaves.forEach(sw => sw.draw(ctx));
+      particles.forEach(p => p.draw(ctx));
+
+      ctx.restore();
+    }
+
+    function loop() {
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    function updateScoreboard() {
+      document.getElementById('player-score').innerText = playerScore;
+      document.getElementById('ai-score').innerText = aiScore;
+    }
+
+    function checkRoundFinish() {
+      const target = currentGameMode === 'adventure' 
+        ? STAGES[currentStageIndex].targetScore 
+        : twoPlayerTarget;
+
+      if (playerScore >= target) {
+        handleStageWin();
+      } else if (aiScore >= target) {
+        handleStageLoss();
+      }
+    }
+
+    function handleStageWin() {
+      isGameOver = true;
+      sound.playThunderBoom();
+
+      if (currentGameMode === 'adventure' && currentStageIndex + 1 >= savedProgress) {
+        savedProgress = Math.min(10, currentStageIndex + 2);
+        try {
+          localStorage.setItem(STORAGE_KEY, savedProgress);
+        } catch(e) {}
+      }
+
+      const modal = document.getElementById('modal-result');
+      const box = document.getElementById('result-box');
+      const icon = document.getElementById('result-icon');
+      const title = document.getElementById('result-title');
+      const desc = document.getElementById('result-desc');
+      const btnNext = document.getElementById('btn-result-next');
+
+      box.className = "bg-slate-900 border-2 border-sky-400 rounded-3xl p-6 w-full max-w-md flex flex-col items-center text-center shadow-2xl glow-lightning";
+      icon.innerText = "⚡ 🏆 ⚡";
+
+      if (currentGameMode === '2player') {
+        title.innerText = "ผู้เล่น 1 (ไรจิน) คว้าชัย!";
+        title.className = "font-hud text-2xl sm:text-3xl font-extrabold mb-1 uppercase tracking-wider text-sky-400 text-glow-blue";
+        desc.innerText = `ทำคะแนนถึงเป้าหมาย ${twoPlayerTarget} แต้มก่อน!`;
+        btnNext.innerText = "⚔️ ดวลต่ออีกรอบ (REMATCH)";
+      } else if (currentStageIndex === 9) {
+        title.innerText = "พิชิตมหาเทพวายุสำเร็จ!";
+        title.className = "font-hud text-2xl sm:text-3xl font-extrabold mb-1 uppercase tracking-wider text-sky-400 text-glow-blue";
+        desc.innerText = "ยอดเยี่ยมมาก! คุณผ่านครบทั้ง 10 ด่านของโหมดผจญภัยแล้ว!";
+        btnNext.innerText = "👑 เล่นด่าน 10 อีกครั้ง";
+      } else {
+        title.innerText = `ผ่านด่านที่ ${currentStageIndex + 1} สำเร็จ!`;
+        title.className = "font-hud text-2xl sm:text-3xl font-extrabold mb-1 uppercase tracking-wider text-sky-400 text-glow-blue";
+        desc.innerText = `ยอดเยี่ยม! ปลดล็อกด่านที่ ${currentStageIndex + 2} เรียบร้อยแล้ว`;
+        btnNext.innerText = `ลุยด่านที่ ${currentStageIndex + 2} (NEXT)`;
+      }
+
+      btnNext.classList.remove('hidden');
+      modal.classList.remove('hidden');
+    }
+
+    function handleStageLoss() {
+      isGameOver = true;
+      const modal = document.getElementById('modal-result');
+      const box = document.getElementById('result-box');
+      const icon = document.getElementById('result-icon');
+      const title = document.getElementById('result-title');
+      const desc = document.getElementById('result-desc');
+      const btnNext = document.getElementById('btn-result-next');
+
+      box.className = "bg-slate-900 border-2 border-emerald-500 rounded-3xl p-6 w-full max-w-md flex flex-col items-center text-center shadow-2xl glow-wind";
+      icon.innerText = "🌪️ 🏆 🌪️";
+
+      if (currentGameMode === '2player') {
+        title.innerText = "ผู้เล่น 2 (ฟูจิน) คว้าชัย!";
+        title.className = "font-hud text-2xl sm:text-3xl font-extrabold mb-1 uppercase tracking-wider text-emerald-400 text-glow-green";
+        desc.innerText = `ทำคะแนนถึงเป้าหมาย ${twoPlayerTarget} แต้มก่อน!`;
+        btnNext.innerText = "⚔️ ดวลต่ออีกรอบ (REMATCH)";
+        btnNext.classList.remove('hidden');
+      } else {
+        title.innerText = "ฟูจินได้รับชัยชนะ!";
+        title.className = "font-hud text-2xl sm:text-3xl font-extrabold mb-1 uppercase tracking-wider text-emerald-400 text-glow-green";
+        desc.innerText = `พายุหมุนของฟูจินเอาชนะในด่านที่ ${currentStageIndex + 1} ลองใหม่อีกครั้ง!`;
+        btnNext.classList.add('hidden');
+      }
+
+      modal.classList.remove('hidden');
+    }
+
+    function startStage(stageIdx) {
+      currentStageIndex = Math.max(0, Math.min(9, stageIdx));
+      const stage = STAGES[currentStageIndex];
+
+      playerScore = 0;
+      aiScore = 0;
+      updateScoreboard();
+
+      document.getElementById('stage-badge').innerText = `ด่าน ${stage.id} / 10`;
+      document.getElementById('match-target').innerText = `FIRST TO ${stage.targetScore}`;
+      document.getElementById('pause-stage-text').innerText = stage.title;
+
+      isPaused = false;
+      isGameOver = false;
+
+      document.getElementById('modal-pause').classList.add('hidden');
+      document.getElementById('modal-stages').classList.add('hidden');
+      document.getElementById('modal-result').classList.add('hidden');
+
+      triggerBanner(`STAGE ${stage.id}`, stage.subtitle, true);
+      resetBall(1);
+    }
+
+    function togglePause() {
+      if (isGameOver) return;
+      isPaused = !isPaused;
+      const modal = document.getElementById('modal-pause');
+      if (isPaused) {
+        modal.classList.remove('hidden');
+      } else {
+        modal.classList.add('hidden');
+      }
+    }
+
+    function renderStageSelectionGrid() {
+      const container = document.getElementById('stages-grid');
+      container.innerHTML = '';
+
+      STAGES.forEach((stg, idx) => {
+        const isUnlocked = idx + 1 <= savedProgress;
+        const isCurrent = idx === currentStageIndex;
+
+        const card = document.createElement('button');
+        card.disabled = !isUnlocked;
+        card.className = `p-3 rounded-2xl border text-left flex flex-col justify-between transition ${
+          isCurrent
+            ? 'bg-sky-950/80 border-sky-400 shadow-[0_0_15px_rgba(56,189,248,0.5)]'
+            : isUnlocked
+            ? 'bg-slate-800/90 border-slate-700 hover:border-slate-500 hover:bg-slate-700/80'
+            : 'bg-slate-900/40 border-slate-800/40 opacity-40 cursor-not-allowed'
+        }`;
+
+        card.innerHTML = `
+          <div class="flex items-center justify-between w-full">
+            <span class="font-hud font-bold text-xs ${isUnlocked ? 'text-white' : 'text-slate-500'}">
+              ด่าน ${stg.id}
+            </span>
+            <span class="text-xs">${isUnlocked ? (idx === 9 ? '👑' : '⚡') : '🔒'}</span>
+          </div>
+          <div class="text-[11px] font-semibold text-sky-400 mt-1 truncate w-full">
+            ${stg.title.split(':')[1] || stg.title}
+          </div>
+          <div class="text-[10px] text-slate-400 mt-0.5">
+            ถึง ${stg.targetScore} แต้ม
+          </div>
+        `;
+
+        card.addEventListener('click', () => {
+          if (isUnlocked) {
+            sound.init();
+            startAdventureMode(idx);
+          }
+        });
+
+        container.appendChild(card);
+      });
+    }
+
+    // Main Menu Button Handlers
+    document.getElementById('btn-adventure-continue').addEventListener('click', () => {
+      sound.init();
+      startAdventureMode();
+    });
+
+    document.getElementById('btn-adventure-select').addEventListener('click', () => {
+      sound.init();
+      document.getElementById('modal-main-menu').classList.add('hidden');
+      renderStageSelectionGrid();
+      document.getElementById('modal-stages').classList.remove('hidden');
+    });
+
+    document.querySelectorAll('.btn-start-2p').forEach(btn => {
+      btn.addEventListener('click', () => {
+        sound.init();
+        const score = parseInt(btn.getAttribute('data-score'), 10) || 5;
+        startTwoPlayerMode(score);
+      });
+    });
+
+    document.getElementById('btn-header-menu').addEventListener('click', () => {
+      sound.init();
+      showMainMenu();
+    });
+
+    document.getElementById('btn-menu-footer').addEventListener('click', () => {
+      sound.init();
+      showMainMenu();
+    });
+
+    document.getElementById('btn-modal-main-menu').addEventListener('click', () => {
+      sound.init();
+      showMainMenu();
+    });
+
+    document.getElementById('btn-result-home').addEventListener('click', () => {
+      sound.init();
+      showMainMenu();
+    });
+
+    // Pause & Stages Controls
+    document.getElementById('btn-pause').addEventListener('click', () => {
+      sound.init();
+      togglePause();
+    });
+
+    document.getElementById('btn-resume').addEventListener('click', () => {
+      sound.init();
+      togglePause();
+    });
+
+    document.getElementById('btn-modal-restart').addEventListener('click', () => {
+      sound.init();
+      if (currentGameMode === 'adventure') {
+        startStage(currentStageIndex);
+      } else {
+        startTwoPlayerMode(twoPlayerTarget);
+      }
+    });
+
+    document.getElementById('btn-restart-round').addEventListener('click', () => {
+      sound.init();
+      if (currentGameMode === 'adventure') {
+        startStage(currentStageIndex);
+      } else {
+        startTwoPlayerMode(twoPlayerTarget);
+      }
+    });
+
+    document.getElementById('btn-open-levels').addEventListener('click', () => {
+      sound.init();
+      renderStageSelectionGrid();
+      document.getElementById('modal-stages').classList.remove('hidden');
+    });
+
+    document.getElementById('btn-modal-select-stage').addEventListener('click', () => {
+      sound.init();
+      document.getElementById('modal-pause').classList.add('hidden');
+      renderStageSelectionGrid();
+      document.getElementById('modal-stages').classList.remove('hidden');
+    });
+
+    document.getElementById('btn-close-stages').addEventListener('click', () => {
+      sound.init();
+      document.getElementById('modal-stages').classList.add('hidden');
+      if (isPaused) {
+        showMainMenu();
+      }
+    });
+
+    document.getElementById('btn-result-next').addEventListener('click', () => {
+      sound.init();
+      if (currentGameMode === 'adventure') {
+        if (currentStageIndex < 9) {
+          startStage(currentStageIndex + 1);
+        } else {
+          startStage(9);
+        }
+      } else {
+        startTwoPlayerMode(twoPlayerTarget);
+      }
+    });
+
+    document.getElementById('btn-result-retry').addEventListener('click', () => {
+      sound.init();
+      if (currentGameMode === 'adventure') {
+        startStage(currentStageIndex);
+      } else {
+        startTwoPlayerMode(twoPlayerTarget);
+      }
+    });
+
+    document.getElementById('btn-sound').addEventListener('click', () => {
+      sound.enabled = !sound.enabled;
+      document.getElementById('sound-icon').innerText = sound.enabled ? '🔊' : '🔇';
+    });
+
+    window.onload = function() {
+      resizeCanvas();
+      showMainMenu();
+      requestAnimationFrame(loop);
+    };
+  </script>
+</body>
+</html>
